@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * @file
+ * Hook implementations.
+ */
+
+/**
+ * Implements hook_islandora_derivative().
+ */
+function archidora_islandora_derivative(AbstractObject $object) {
+  $mod_path = drupal_get_path('module', 'archidora');
+
+  $items = array();
+
+  module_load_include('inc', 'islandora', 'includes/utilities');
+  module_load_include('inc', 'archidora', 'includes/utilities');
+  $allowed = array(
+    'OBJ',
+  );
+  $datastreams = array_keys(islandora_get_datastreams_requirements($object));
+
+  if (count(array_intersect($allowed, $datastreams)) > 0 && archidora_get_parent($object)) {
+    $items[] = array(
+      'source_dsid' => NULL,
+      'destination_dsid' => NULL,
+      'weight' => '1000',
+      'function' => array(
+        'archidora_derivative_callback',
+      ),
+      'file' => "$mod_path/includes/derivatives.inc",
+    );
+  }
+
+  return $items;
+}

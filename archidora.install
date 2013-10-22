@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function archidora_schema() {
+  $shema = array();
+
+  $schema['archidora_aip_info'] = array(
+    'description' => 'Various state tracking for Archivematica integration.',
+    'fields' => array(
+      'object' => array(
+        'description' => 'The collection object associated with the AIP.',
+        'type' => 'varchar',
+        'length' => 256,
+        'not null' => TRUE
+      ),
+      'part' => array(
+        'description' => 'An integer combined with the object, to produce the AIP ID.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'em_iri' => array(
+        'description' => 'EM-IRI, to which later POSTs can be made.',
+        'type' => 'varchar',
+        'length' => 1024 * 64,
+        'not null' => TRUE,
+      ),
+      'size' => array(
+        'description' => 'The current size of this AIP.',
+        'type' => 'int',
+        'size' => 'big',
+        'unsigned' => TRUE,
+        'default' => '0',
+      ),
+      'finalized_date' => array(
+        'description' => 'The date on which this AIP was finialized--null if it's still open.',
+        'type' => 'int',
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+    ),
+    'primary key' => array('object', 'part'),
+  );
+
+  return $schema;
+}
