@@ -22,10 +22,73 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     $aip = archidora_lookup_aip($object);
   }
 
-  // TODO: Make request to add to AIP.
-  // TODO: If $aip->em_iri, POST to it; otherwise, POST to create a new AIP.
-  // TODO: Parse response; adjust size stored in table if successful.
-  // TODO: Save EM-IRI onto $object, and into $aip/table.
+  $atom_file_uri = archidora_get_atom_entry($object);
+  // Make request to add to AIP.
+  // If $aip->em_iri, POST to it; otherwise, POST to create a new AIP.
+  $archivematica_url = variable_get('archidora_archivematica_url', 'http://localhost');
+  $url = isset($aip->em_iri) ?
+    $aip->em_iri :
+    "$archivematica_url/api/v2/transfer/create";
+
+  $response = drupal_http_request($url, array(
+    'method' => 'POST',
+    'headers' => array(
+      // Content-Length is automatically determined, based on 'data'.
+      'In-Progress' => 'true',
+      // TODO: Figure out what to pass for auth...
+      //'Authorization' => format_string('Basic !b64d', array('!b64d' => )),
+      'Content-Type' => 'application/atom+xml;type=entry',
+      'Slug' => $aip->id,
+    ),
+    'data' => rawurlencode(file_get_contents($atom_file_uri)),
+  ));
+  file_unmanaged_delete($atom_file_uri);
+
+  if ($response->code === 201) {
+    // TODO: Adjust size stored in table if successful, for AM-4?
+    $response_body = $response->data;
+    if (!empty($response_body)) {
+      $xml = new SimpleXMLElement($response_body);
+      $xml->registerXPathNamespace('atom', 'http://www.w3.org/2005/Atom');
+      $em_iris = $xml->xpath('/atom:entry/atom:link[@rel="edit-media"]/@href');
+      $em_iri_element = reset($em_iris);
+      if ($em_iri_element) {
+        if (!isset($aip->em_iri)) {
+          $aip->em_iri = (string) $em_iri_element;
+          watchdog('archidora', 'Got new @em_iri when adding @pid to @aip.', array(
+            '@em_iri' => $aip->em_iri,
+            '@pid' => $object->id,
+            '@aip' => $aip->id,
+          ), WATCHDOG_DEBUG);
+        }
+        // TODO: Save EM-IRI into $aip/table.
+      }
+      else {
+        watchdog('archidora', 'Deposit receipt did not contain EM-IRI when adding @pid to @aip.', array(
+          '@pid' => $object->id,
+          '@aip' => $aip->id,
+        ), WATCHDOG_WARNING);
+      }
+    }
+    else {
+      watchdog('archidora', 'No deposit receipt received when adding @pid to @aip.', array(
+        '@pid' => $object->id,
+        '@aip' => $aip->id,
+      ), WATCHDOG_WARNING);
+    }
+
+    if (isset($aip->em_iri)) {
+      // TODO: Save EM-IRI onto $object.
+    }
+  }
+  else {
+    // Report error somehow...
+    watchdog('archidora', 'Got @code when attempting to add @pid to @aip.', array(
+      '@code' => $response->code,
+      '@pid' => $object->id,
+      '@aip' => $aip->id,
+    ), WATCHDOG_ERROR);
+  }
 }
 
 /**
@@ -44,7 +107,7 @@ function archidora_lookup_aip(AbstractObject $object) {
   $parent = archidora_get_parent($object);
 
   $q = <<<EOQ
-SELECT *, CONCAT(object, '-', part) AS aip_id
+SELECT *, CONCAT(object, '-', part) AS id
 FROM {archidora_aip_info} INNER JOIN (
   SELECT MAX(part) p
   FROM {archidora_aip_info}
@@ -62,7 +125,7 @@ EOQ;
     $aip = new stdClass();
     $aip->object = $parent->id;
     $aip->part = 0;
-    $aip->aip_id = "{$aip->object}-{$aip->part}";
+    $aip->id = "{$aip->object}-{$aip->part}";
   }
 
   return $aip;
@@ -71,13 +134,13 @@ EOQ;
 /**
  * Determine if we have hit one of the conditions to finalize the given AIP.
  *
- * @param object $aip_id
+ * @param object $aip
  *
  * @return bool
  *   TRUE if we should finalize; otherwise, FALSE.
  */
 function archidora_should_finalize_aip($aip) {
-  // TODO: Return `AIP size > threshold || date > expiry`?
+  // TODO: Return `!explicitly_specified_AIP && (AIP size > threshold || date > expiry)`?
   return FALSE;
 }
 
