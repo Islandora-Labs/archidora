@@ -45,41 +45,29 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
   file_unmanaged_delete($atom_file_uri);
 
   if ($response->code === 201) {
-    // TODO: Adjust size stored in table if successful, for AM-4?
+    // TODO: Adjust size stored in table when successful, for AM-4?
     $response_body = $response->data;
     if (!empty($response_body)) {
-      $xml = new SimpleXMLElement($response_body);
-      $xml->registerXPathNamespace('atom', 'http://www.w3.org/2005/Atom');
-      $em_iris = $xml->xpath('/atom:entry/atom:link[@rel="edit-media"]/@href');
-      $em_iri_element = reset($em_iris);
-      if ($em_iri_element) {
-        if (!isset($aip->em_iri)) {
-          $aip->em_iri = (string) $em_iri_element;
-          watchdog('archidora', 'Got new @em_iri when adding @pid to @aip.', array(
-            '@em_iri' => $aip->em_iri,
-            '@pid' => $object->id,
-            '@aip' => $aip->id,
-          ), WATCHDOG_DEBUG);
-        }
-        // TODO: Save EM-IRI into $aip/table.
-      }
-      else {
-        watchdog('archidora', 'Deposit receipt did not contain EM-IRI when adding @pid to @aip.', array(
-          '@pid' => $object->id,
-          '@aip' => $aip->id,
-        ), WATCHDOG_WARNING);
+      $parsed = archidora_parse_deposit_receipt($response_body, $object, $aip->id);
+      // TODO: Update $aip with stuff parsed out of the deposit receipt.
+      if (!isset($aip->se_iri)) {
+        $aip->created = TRUE;
+        $aip->created_time = time();
+        $aip->se_iri = $parsed['SE-IRI'];
+        $aip->em_iri = $parsed['EM-IRI'];
       }
     }
     else {
       watchdog('archidora', 'No deposit receipt received when adding @pid to @aip.', array(
         '@pid' => $object->id,
         '@aip' => $aip->id,
-      ), WATCHDOG_WARNING);
+      ), WATCHDOG_ERROR);
     }
 
     if (isset($aip->em_iri)) {
       // TODO: Save EM-IRI onto $object.
     }
+    return $aip;
   }
   else {
     // Report error somehow...
@@ -88,6 +76,32 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
       '@pid' => $object->id,
       '@aip' => $aip->id,
     ), WATCHDOG_ERROR);
+  }
+}
+
+function archidora_parse_deposit_receipt($response_body, $object, $aip_id) {
+  $to_parse = array(
+    'EM-IRI' => '/atom:entry/atom:link[@rel="edit-media"]/@href',
+    'SE-IRI' => '/atom:entry/atom:link[@rel="http://purl.org/net/sword/terms/add"]/@href',
+  );
+
+  $xml = new SimpleXMLElement($response_body);
+  $xml->registerXPathNamespace('atom', 'http://www.w3.org/2005/Atom');
+
+  $to_return = array();
+  foreach ($to_parse as $field => $path) {
+    $elements = $xml->xpath('/atom:entry/atom:link[@rel="edit-media"]/@href');
+    $element = reset($elements);
+    if ($element) {
+      $to_return[$field] = (string) $element;
+    }
+    else {
+      watchdog('archidora', 'Deposit receipt did not contain @field when adding @pid to @aip.', array(
+        '@field' => $field,
+        '@pid' => $object->id,
+        '@aip' => $aip_id,
+      ), WATCHDOG_WARNING);
+    }
   }
 }
 
