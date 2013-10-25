@@ -108,17 +108,12 @@ function archidora_lookup_aip(AbstractObject $object) {
 
   $q = <<<EOQ
 SELECT *, CONCAT(object, '-', part) AS id
-FROM {archidora_aip_info} INNER JOIN (
-  SELECT MAX(part) p
-  FROM {archidora_aip_info}
-  WHERE object = :object AND finalized_date IS NULL
-) i ON part = i.part
+FROM {archidora_aip_info}
 WHERE object = :object
 EOQ;
-  $results = db_query($q, array(
+  $aip = db_query($q, array(
     ':object' => $parent->id,
-  ))->fetchAll();
-  $aip = reset($results);
+  ))->fetchObject();
 
   if (!$aip) {
     // Didn't appear to be any result... Let's fabricate sommat...
@@ -140,12 +135,12 @@ EOQ;
  *   TRUE if we should finalize; otherwise, FALSE.
  */
 function archidora_should_finalize_aip($aip) {
-  // TODO: Return `!explicitly_specified_AIP && (AIP size > threshold || date > expiry)`?
+  // TODO: Return `AIP size > threshold || date > expiry`?
   return FALSE;
 }
 
-function archidora_finalize_aip($aip_id) {
-  // TODO: Set expiry this AIP?
+function archidora_finalize_aip($aip) {
+  // TODO: Increment 'part' in archidora_aip_info.
 }
 
 /**
@@ -159,8 +154,7 @@ function archidora_finalize_aip($aip_id) {
  *   with it.
  */
 function archidora_get_atom_entry(AbstractObject $object) {
-  // TODO: Build up an ATOM entry for the given object...
-
+  // Build up an ATOM entry for the given object...
   $atom_ns = 'http://www.w3.org/2005/Atom';
 
   $file_uri = file_create_filename("atom.xml", 'public://');
@@ -169,29 +163,37 @@ function archidora_get_atom_entry(AbstractObject $object) {
   $xml->startDocument('1.0', 'UTF-8');
   $xml->startElementNS('atom', 'entry', $atom_ns);
 
-  $xml->startElementNS('atom', 'title', $atom_ns);
+  $xml->startElementNS('atom', 'title', NULL);
   $xml->text($object->label);
   $xml->endElement();
 
-  $xml->startElementNS('atom', 'id', $atom_ns);
+  $xml->startElementNS('atom', 'id', NULL);
   $xml->text($object->id);
   $xml->endElement();
 
-  $xml->startElementNS('atom', 'updated', $atom_ns);
-  $xml->text($object->lastModifiedDate->toString())
+  $xml->startElementNS('atom', 'updated', NULL);
+  $xml->text($object->lastModifiedDate->format(DateTime::ATOM));
   $xml->endElement();
 
-  $xml->startElementNS('atom', 'author', $atom_ns);
-  $xml->startElementNS('atom', 'name', $atom_ns);
+  $xml->startElementNS('atom', 'author', NULL);
+  $xml->startElementNS('atom', 'name', NULL);
   $xml->text($object->owner);
   $xml->endElement();
   $xml->endElement();
 
   // Grab the migration METS export and dump in.
   $exported_mets = $object->repository->api->m->export($object->id, array(
-    'format' => 'info:fedora/fedora-system:METS-1.1',
+    'format' => 'info:fedora/fedora-system:METSFedoraExt-1.1',
     'context' => 'migrate',
+    'encoding' => 'UTF-8',
   ));
+  // XXX: Strip off the "<?xml version, encoding..." bit.
+  if (strpos($exported_mets, '<?xml') === 0) {
+    $dom = new DOMDocument();
+    $dom->preserveWhiteSpace = FALSE;
+    $dom->loadXML($exported_mets);
+    $exported_mets = $dom->saveXML($dom->documentElement);
+  }
   $xml->writeRaw($exported_mets);
 
   $xml->endElement();
