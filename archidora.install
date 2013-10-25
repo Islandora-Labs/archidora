@@ -6,43 +6,6 @@
 function archidora_schema() {
   $schema = array();
 
-  $schema['archidora_aip_queue'] = array(
-    'description' => 'Object queue for Archivematica integration.',
-    'fields' => array(
-      'object' => array(
-        'description' => 'The ID of objects to send to Archivematica.',
-        'type' => 'varchar',
-        'length' => 64,
-        'not null' => TRUE
-      ),
-      'aip' => array(
-        'description' => 'The AIP ID, NULL should cause a lookup.',
-        'type' => 'varchar',
-        'length' => 256,
-        'not null' => FALSE,
-      ),
-      'last_status' => array(
-        'description' => 'Status code when last submitted.',
-        'type' => 'int',
-        'not null' => FALSE,
-      ),
-      'last_modified_date' => array(
-        'description' => 'Last modified date, when added to queue.',
-        'type' => 'int',
-        'not null' => TRUE,
-      ),
-      'claimed' => array(
-        'description' => 'Flag indicating that this entry has been claimed.',
-        'type' => 'int',
-        'size' => 'small',
-        'unsigned' => TRUE,
-        'default' => 0,
-        'not null' => TRUE,
-      ),
-    ),
-    'primary key' => array('object', 'last_modified_date'),
-  );
-
   $schema['archidora_aip_info'] = array(
     'description' => '',
     'fields' => array(

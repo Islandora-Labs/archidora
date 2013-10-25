@@ -2,6 +2,5 @@ name = Archidora
 description = "Archivematica/Islandora integration"
 package = Islandora
 dependencies[] = islandora
-files[] = includes/archivematica.queue.inc
 version = 7.x-dev
 core = 7.x
