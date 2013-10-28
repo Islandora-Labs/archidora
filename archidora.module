@@ -8,6 +8,25 @@
 
 define('ARCHIDORA_RDF_URI', 'http://islandora.ca/archivematica#');
 
+
+/**
+ * Implements hook_menu().
+ */
+function archidora_menu() {
+  $items = array();
+
+  $items['admin/islandora/archidora'] = array(
+    'title' => 'Archivematica Integration',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('archidora_admin_form'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'includes/admin.form.inc',
+  );
+
+  return $items;
+}
+
 /**
  * Implements hook_islandora_derivative().
  */
@@ -16,14 +35,10 @@ function archidora_islandora_derivative(AbstractObject $object) {
 
   $items = array();
 
-  module_load_include('inc', 'islandora', 'includes/utilities');
   module_load_include('inc', 'archidora', 'includes/utilities');
-  $allowed = array(
-    'OBJ',
-  );
-  $datastreams = array_keys(islandora_get_datastreams_requirements($object));
+  $skip_models = archidora_skip_content_models();
 
-  if (count(array_intersect($allowed, $datastreams)) > 0 && archidora_get_parent($object)) {
+  if (count(array_intersect($object->models, $skip_models)) === 0 && archidora_get_parent($object)) {
     $items[] = array(
       'source_dsid' => NULL,
       'destination_dsid' => NULL,

@@ -6,21 +6,30 @@
  */
 
 function archidora_get_archivematica_batch() {
-  // TODO: Return an array describing a batch.
+  module_load_include('inc', 'archidora', 'includes/utilities');
+
+  // Return an array describing a batch.
+  return array(
+    'title' => t('Sending objects to Archivematica...'),
+    'init_message' => t('Prepping...'),
+    'progress_message' => t('Time elapsed: @elapsed <br/>Estimated time remaning @estimate.'),
+    'operations' => array(
+      array('archidora_query_objects_operation', array(
+        1000,
+        archidora_skip_content_models(),
+      )),
+      array('archidora_process_object_operation', array()),
+    ),
+    'file' => drupal_get_path('module', 'archidora') . '/includes/batch.inc',
+  );
 }
 
-function archidora_query_objects_operation($jump, &$context) {
+function archidora_query_objects_operation($jump, $content_models_to_skip, &$context) {
   $sandbox = &$context['sandbox'];
 
-  // TODO: Get all objects PIDs, store in a file referenced in
+  // Get all objects PIDs, store in a file referenced in
   // $context['results'].
 
-  $content_models_to_skip = array(
-    'islandora:collectionCModel',
-    'islandora:newspaperCModel',
-    'islandora:newspaperIssueCModel',
-    'islandora:bookCModel',
-  );
   $map = function ($pid) {
     return format_string('"info:fedora/!pid"', array(
       '!pid' => $pid,
@@ -31,9 +40,11 @@ function archidora_query_objects_operation($jump, &$context) {
   $qp->solrQuery = '*:*';
   $qp->solrParams['fl'] = 'PID';
   $qp->solrParams['fq'] = array(
-    '-RELS_EXT_edit_media_uri_ms:[* TO *]',
+    format_string('-!field:[* TO *]', array(
+      '!field' => variable_get('archidora_em_iri_solr_field', 'RELS_EXT_edit_media_uri_ms'),
+    )),
     format_string('-!field:(!values)', array(
-      '!field' => 'RELS_EXT_hasModel_uri_ms',
+      '!field' => variable_get('islandora_solr_content_model_field', 'RELS_EXT_hasModel_uri_ms'),
       '!values' => implode(' ', array_map($map, $content_models_to_skip)),
     )),
   );
@@ -95,7 +106,7 @@ function archidora_process_object_operation(&$context) {
       module_load_include('inc', 'archidora', 'includes/archivematica');
       $aip = archidora_send_to_archivematica($object);
 
-      // TODO: Register all created AIPs somewhere in $context['results']...  In
+      // Register all created AIPs somewhere in $context['results']...  In
       // an associative array, mapping IDs to whether or not it should be
       // finalized... Will need the SE-IRI to be able to finalize... Maybe a
       // more detailed structure?
@@ -110,5 +121,21 @@ function archidora_process_object_operation(&$context) {
 }
 
 function archidora_finalize_aips(&$context) {
+  $sandbox = &$context['sandbox'];
   // TODO: Finalize all AIPs which should be...
+  if (!isset($sandbox['offset'])) {
+    $sandbox['aips'] = array_values($context['results']['aips']);
+    $sandbox['total'] = count($sandbox['aips']);
+    if ($sandbox['total'] === 0) {
+      return 0;
+    }
+  }
+
+  $aip = array_pop($sandbox['aips']);
+
+  module_load_include('inc', 'archidora', 'includes/archivematica');
+  if (archidora_should_finalize_aip($aip)) {
+    archidora_finalize_aip($aip);
+  }
+  $context['finished'] = ($sandbox['total'] - count($sandbox['aips'])) / $sandbox['total'];
 }

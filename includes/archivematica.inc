@@ -19,10 +19,6 @@
  *   given back to us from Archivematica.
  */
 function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
-  if (archidora_get_em_iri_from_object($object)) {
-    trigger_error(t('Tried to send object to Archivematica which already appears to be in an AIP: @pid', array('@pid' => $object->id)), E_USER_WARNING);
-    return FALSE;
-  }
   if ($aip === NULL) {
     $aip = archidora_lookup_aip($object);
   }
@@ -80,7 +76,8 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     }
 
     if (isset($aip->em_iri)) {
-      // Save EM-IRI onto $object.
+      // Save EM-IRI onto $object, getting rid of any old ones.
+      $object->relationships->remove(ARCHIDORA_RDF_URI, 'edit_media');
       $object->relationships->add(ARCHIDORA_RDF_URI, 'edit_media', $aip->em_iri, RELS_TYPE_FULL_URI);
     }
     return $aip;
@@ -161,11 +158,22 @@ FROM {archidora_aips} a INNER JOIN {archidora_aip_base_state} s
   ON a.id = s.id
 WHERE s.object = :object
 EOQ;
-  $aip  = db_query($q, array(
+  $aip = db_query($q, array(
     ':object' => $parent->id,
   ))->fetchObject();
 
-  if (!$aip) {
+  // We found an AIP, but it should be finalized (due to time constraint or
+  // whatever)... Get a new one.
+  if ($aip && archidora_should_finalize_aip($aip)) {
+    // Increment 'part' in {archidora_aip_base_state}.
+    archidora_increment_aip_part($aip);
+
+    $aip = db_query($q, array(
+      ':object' => $parent->id,
+    ))->fetchObject();
+    $aip->created = TRUE;
+  }
+  elseif (!$aip) {
     // Didn't appear to be any result... Let's fabricate sommat...
     $aip = new stdClass();
     $aip->object = $parent->id;
@@ -198,7 +206,12 @@ EOQ;
 function archidora_should_finalize_aip($aip) {
   // TODO: Factor in file size stuff...?
   // TODO: Factor in the batch stuff?
-  return time() - intval($aip->created_time) > 300;
+  $max_age = variable_get('archidora_max_age', 300);
+  if ($max_age < 0) {
+    // Is a custom time; get it.
+    $max_age = intval(variable_get('archidora_max_age_custom', 300));
+  }
+  return (time() - intval($aip->created_time)) > $max_age;
 }
 
 /**
@@ -229,17 +242,13 @@ function archidora_finalize_aip($aip) {
   // Actually send "finalize" post...
   $response = drupal_http_request($aip->se_iri, array(
     'method' => 'POST',
-    'headers' => archidora_get_request_base_headers(),
+    'headers' => array(
+      'In-Progress' => 'false',
+    ) + archidora_get_request_base_headers(),
   ));
 
   if ($response->code === 200) {
-    // Increment 'part' in {archidora_aip_base_state}.
-    $q = <<<EOQ
-UPDATE {archidora_aip_base_state}
-SET part = part + 1, id = CONCAT(object, '-', part + 1)
-WHERE id = :id
-EOQ;
-    db_query($q, array(':id' => $aip->id));
+    archidora_increment_aip_part($aip);
   }
   else {
     watchdog('archidora', 'Failed to finalize AIP @aip. Code: @code', array(
@@ -247,6 +256,22 @@ EOQ;
       '@code' => $response->code,
     ), WATCHDOG_ERROR);
   }
+}
+
+/**
+ * Increment the base state, if the given AIP is the most current.
+ *
+ * @param object $aip
+ *   An object describing an AIP (with the "id" property).
+ */
+function archidora_increment_aip_part($aip) {
+  // Increment 'part' in {archidora_aip_base_state}.
+  $q = <<<EOQ
+UPDATE {archidora_aip_base_state}
+SET part = part + 1, id = CONCAT(object, '-', part + 1)
+WHERE id = :id
+EOQ;
+  db_query($q, array(':id' => $aip->id));
 }
 
 /**

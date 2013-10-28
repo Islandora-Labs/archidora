@@ -34,3 +34,13 @@ function archidora_get_parent(AbstractObject $object) {
 
   return reset($memberships);
 }
+
+function archidora_skip_content_models() {
+  return array(
+    'islandora:collectionCModel',
+    'islandora:newspaperCModel',
+    'islandora:newspaperIssueCModel',
+    'islandora:bookCModel',
+    'islandora:compoundCModel',
+  );
+}
