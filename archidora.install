@@ -6,7 +6,7 @@
 function archidora_schema() {
   $schema = array();
 
-  $schema['archidora_aip_info'] = array(
+  $schema['archidora_aip_base_state'] = array(
     'description' => '',
     'fields' => array(
       'object' => array(
@@ -20,8 +20,47 @@ function archidora_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'id' => array(
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => "CONCAT(object, '-', part)",
+      ),
     ),
     'primary key' => array('object'),
+    'indexes' => array(
+      'id' => array('id'),
+    ),
+  );
+
+  $schema['archidora_aips'] = array(
+    'description' => 'Information regarding unfinialized AIPs.',
+    'fields' => array(
+      'id' => array(
+        'description' => 'The ID of this AIP.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ),
+      'created_time' => array(
+        'description' => 'Timestamp when this AIP was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+      ),
+      'em_iri' => array(
+        'description' => 'The Edit Media IRI for this AIP.',
+        'type' => 'varchar',
+        'length' => 1024 * 64,
+        'not null' => TRUE,
+      ),
+      'se_iri' => array(
+        'description' => 'The SE-IRI for this AIP.',
+        'type' => 'varchar',
+        'length' => 1024 * 64,
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('id'),
   );
 
   return $schema;

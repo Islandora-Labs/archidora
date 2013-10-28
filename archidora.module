@@ -5,6 +5,9 @@
  * Hook implementations.
  */
 
+
+define('ARCHIDORA_RDF_URI', 'http://islandora.ca/archivematica#');
+
 /**
  * Implements hook_islandora_derivative().
  */

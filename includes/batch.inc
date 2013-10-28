@@ -31,7 +31,7 @@ function archidora_query_objects_operation($jump, &$context) {
   $qp->solrQuery = '*:*';
   $qp->solrParams['fl'] = 'PID';
   $qp->solrParams['fq'] = array(
-    '-RELS_EXT_em_iri_uri_ms:[* TO *]',
+    '-RELS_EXT_edit_media_uri_ms:[* TO *]',
     format_string('-!field:(!values)', array(
       '!field' => 'RELS_EXT_hasModel_uri_ms',
       '!values' => implode(' ', array_map($map, $content_models_to_skip)),
