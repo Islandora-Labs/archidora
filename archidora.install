@@ -29,7 +29,6 @@ function archidora_schema() {
         'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
-        'default' => "CONCAT(object, '-', part)",
       ),
     ),
     'primary key' => array('object'),
