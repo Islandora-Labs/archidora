@@ -53,14 +53,12 @@ function archidora_schema() {
       ),
       'em_iri' => array(
         'description' => 'The Edit Media IRI for this AIP.',
-        'type' => 'varchar',
-        'length' => 1024 * 64,
+        'type' => 'blob',
         'not null' => TRUE,
       ),
       'se_iri' => array(
         'description' => 'The SE-IRI for this AIP.',
-        'type' => 'varchar',
-        'length' => 1024 * 64,
+        'type' => 'blob',
         'not null' => TRUE,
       ),
     ),
