@@ -38,7 +38,7 @@ function archidora_schema() {
   );
 
   $schema['archidora_aips'] = array(
-    'description' => 'Information regarding unfinialized AIPs.',
+    'description' => 'Information regarding unfinalized AIPs.',
     'fields' => array(
       'id' => array(
         'description' => 'The ID of this AIP.',
