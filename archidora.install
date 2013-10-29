@@ -1,6 +1,11 @@
 <?php
 
 /**
+ * @file
+ * Various installation hook implementations.
+ */
+
+/**
  * Implements hook_schema().
  */
 function archidora_schema() {

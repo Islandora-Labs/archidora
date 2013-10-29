@@ -5,6 +5,15 @@
  * Batch definition and operation functions.
  */
 
+/**
+ * Get a batch definition to process...
+ *
+ * Not actually sure how useful this might be, on second though, with the way
+ * we add things in the derivative hook... Shrug?
+ *
+ * @return array
+ *   An array structure which should be able to be passed to batch_set().
+ */
 function archidora_get_archivematica_batch() {
   module_load_include('inc', 'archidora', 'includes/utilities');
 
@@ -14,21 +23,33 @@ function archidora_get_archivematica_batch() {
     'init_message' => t('Prepping...'),
     'progress_message' => t('Time elapsed: @elapsed <br/>Estimated time remaning @estimate.'),
     'operations' => array(
-      array('archidora_query_objects_operation', array(
-        1000,
-        archidora_skip_content_models(),
-      )),
+      array(
+        'archidora_query_objects_operation',
+        array(
+          1000,
+          archidora_skip_content_models(),
+        ),
+      ),
       array('archidora_process_object_operation', array()),
+      array('archidora_finalize_aips', array()),
     ),
     'file' => drupal_get_path('module', 'archidora') . '/includes/batch.inc',
   );
 }
 
+/**
+ * Batch operation to discover all objects on which we have to operate.
+ *
+ * Get all objects PIDs, store in a file referenced in $context['results'].
+ *
+ * @param int $jump
+ *   The number of items for which to query at a time.
+ * @param array $content_models_to_skip
+ *   An array of string representing content models, as provided by
+ *   archidora_skip_content_models().
+ */
 function archidora_query_objects_operation($jump, $content_models_to_skip, &$context) {
   $sandbox = &$context['sandbox'];
-
-  // Get all objects PIDs, store in a file referenced in
-  // $context['results'].
 
   $map = function ($pid) {
     return format_string('"info:fedora/!pid"', array(
@@ -81,6 +102,9 @@ function archidora_query_objects_operation($jump, $content_models_to_skip, &$con
   $context['finished'] = count($qp->islandoraSolrResult['response']['objects']) === 0;
 }
 
+/**
+ * Batch operation to process all discovered operands.
+ */
 function archidora_process_object_operation(&$context) {
   $sandbox = &$context['sandbox'];
 
@@ -120,6 +144,9 @@ function archidora_process_object_operation(&$context) {
   $context['finished'] = $sandbox['offset'] / $sandbox['total'];
 }
 
+/**
+ * Batch operation to finalize AIPs encountered when batching...
+ */
 function archidora_finalize_aips(&$context) {
   $sandbox = &$context['sandbox'];
   // TODO: Finalize all AIPs which should be...

@@ -9,6 +9,8 @@
  * Get the parent for the given object, for which to create an AIP.
  *
  * @param AbstractObject $object
+ *   The object for which to grab the parent... Used when looking up to which
+ *   AIP this object should be added.
  *
  * @return string|FALSE
  *   The first eligible parent's PID, or FALSE if we couldn't find any.
@@ -35,6 +37,13 @@ function archidora_get_parent(AbstractObject $object) {
   return reset($memberships);
 }
 
+/**
+ * Get a list of the content models which should not add to AIPs.
+ *
+ * @return array
+ *   An array of string representing content models, without the "info:fedora/"
+ *   bit.
+ */
 function archidora_skip_content_models() {
   return array(
     'islandora:collectionCModel',

@@ -199,6 +199,9 @@ EOQ;
  * Determine if we have hit one of the conditions to finalize the given AIP.
  *
  * @param object $aip
+ *   AIP object, with whatever properties needed to make a decision about
+ *   whether or not it should be finalized, including:
+ *   - created_time: The timestamp when this AIP was created.
  *
  * @return bool
  *   TRUE if we should finalize; otherwise, FALSE.
@@ -234,9 +237,12 @@ function archidora_get_request_base_headers() {
 }
 
 /**
+ * Send request to actually finalize an AIP.
  *
  * @param object $aip
- *   Object describing the AIP.
+ *   Object describing the AIP, with a couple properties:
+ *   - se_iri: The SE-IRI, to which we need to make a POST to close the AIP.
+ *   - id: The ID of the AIP, so was can report about it.
  */
 function archidora_finalize_aip($aip) {
   // Actually send "finalize" post...
