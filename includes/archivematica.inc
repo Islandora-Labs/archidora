@@ -228,8 +228,8 @@ function archidora_get_request_base_headers() {
   return array(
     'Authorization' => format_string('Basic !b64d', array(
       '!b64d' => base64_encode(format_string('!user:!pass', array(
-        '!user' => rawurlencode(variable_get('archidora_user', 'archidora')),
-        '!pass' => rawurlencode(variable_get('archidora_pass', '')),
+        '!user' => variable_get('archidora_user', 'archidora'),
+        '!pass' => variable_get('archidora_pass', ''),
       ))),
     )),
     'Content-Type' => 'application/atom+xml;type=entry',
