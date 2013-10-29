@@ -151,7 +151,6 @@ function archidora_lookup_aip(AbstractObject $object) {
   module_load_include('inc', 'archidora', 'utilities');
   $parent = archidora_get_parent($object);
 
-  $aip = FALSE;
   $q = <<<EOQ
 SELECT a.*
 FROM {archidora_aips} a INNER JOIN {archidora_aip_base_state} s
