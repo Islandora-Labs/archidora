@@ -21,7 +21,7 @@ function archidora_get_archivematica_batch() {
   return array(
     'title' => t('Sending objects to Archivematica...'),
     'init_message' => t('Prepping...'),
-    'progress_message' => t('Time elapsed: @elapsed <br/>Estimated time remaning @estimate.'),
+    'progress_message' => t('Time elapsed: @elapsed <br/>Estimated time remaining @estimate.'),
     'operations' => array(
       array(
         'archidora_query_objects_operation',
