@@ -18,7 +18,7 @@
 function archidora_get_parent(AbstractObject $object) {
   $map = function ($relationship) {
     return $relationship['object']['value'];
-  }
+  };
 
   $rels = array(
     FEDORA_RELS_EXT_URI => array(
