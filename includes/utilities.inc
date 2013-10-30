@@ -29,7 +29,7 @@ function archidora_get_parent(AbstractObject $object) {
   $memberships = array();
   foreach ($rels as $uri => $preds) {
     foreach ($preds as $pred) {
-      $parent_pids = array_map($map, $object->get($uri, $pred));
+      $parent_pids = array_map($map, $object->relationships->get($uri, $pred));
       $memberships = array_merge($memberships, $parent_pids);
     }
   }
