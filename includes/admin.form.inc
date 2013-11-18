@@ -15,24 +15,27 @@ function archidora_admin_form($form, &$form_state) {
     '#type' => 'fieldset',
     '#title' => t('Archivematica info'),
   );
+  // XXX: Would be nice to be able to verify the provided details, here;
+  // however, there doesn't appear to be an endpoint we can hit to test...
   $form['archivematica']['archidora_archivematica_url'] = array(
     '#type' => 'textfield',
-    '#title' => t('Archivematica URL'),
+    '#title' => t('Archivematica Base URL'),
+    '#description' => t('The base URL to use to contact Archivematica.'),
     '#default_value' => variable_get('archidora_archivematica_url', 'http://localhost'),
   );
   $form['archivematica']['archidora_user'] = array(
     '#type' => 'textfield',
     '#title' => t('Archivematica User'),
     '#description' => t('The username to use to connect to Archivematica.'),
+    '#required' => TRUE,
     '#default_value' => variable_get('archidora_user', 'archidora'),
   );
-  $form['archivematica']['archidora_pass'] = array(
-    '#type' => 'password',
-    '#title' => t('Archivematica Password'),
-    '#description' => t('The password for the user indicated above.'),
-    '#attributes' => array(
-      'value' => variable_get('archidora_pass', ''),
-    ),
+  $form['archivematica']['archidora_api_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Archivematica API Key'),
+    '#description' => t('An API key for the user indicated above.'),
+    '#required' => TRUE,
+    '#default_value' => variable_get('archidora_api_key', ''),
   );
   $form['archidora_em_iri_solr_field'] = array(
     '#type' => 'textfield',

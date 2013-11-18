@@ -36,7 +36,6 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     'headers' => array(
       // Content-Length is automatically determined, based on 'data'.
       'In-Progress' => 'true',
-      'Slug' => $aip->id,
     ) + archidora_get_request_base_headers(),
     'data' => rawurlencode(file_get_contents($atom_file_uri)),
   ));
@@ -148,17 +147,17 @@ function archidora_parse_deposit_receipt($response_body, $object, $aip_id) {
  *   Either the AIP currently in progress, or a new AIP.
  */
 function archidora_lookup_aip(AbstractObject $object) {
-  module_load_include('inc', 'archidora', 'utilities');
+  module_load_include('inc', 'archidora', 'includes/utilities');
   $parent = archidora_get_parent($object);
 
   $q = <<<EOQ
-SELECT a.*
-FROM {archidora_aips} a INNER JOIN {archidora_aip_base_state} s
+SELECT a.*, s.*
+FROM {archidora_aip_base_state} s LEFT JOIN {archidora_aips} a 
   ON a.id = s.id
 WHERE s.object = :object
 EOQ;
   $aip = db_query($q, array(
-    ':object' => $parent->id,
+    ':object' => $parent,
   ))->fetchObject();
 
   // We found an AIP, but it should be finalized (due to time constraint or
@@ -168,14 +167,19 @@ EOQ;
     archidora_increment_aip_part($aip);
 
     $aip = db_query($q, array(
-      ':object' => $parent->id,
+      ':object' => $parent,
     ))->fetchObject();
+    $aip->created = TRUE;
+  }
+  elseif ($aip && ($aip->created_time === NULL || $aip->em_iri === NULL || $aip->se_iri === NULL)) {
+    // Deal with potential error condition... Entry created in base state table,
+    // but request failed before we got to add entry to aips table.
     $aip->created = TRUE;
   }
   elseif (!$aip) {
     // Didn't appear to be any result... Let's fabricate sommat...
     $aip = new stdClass();
-    $aip->object = $parent->id;
+    $aip->object = $parent;
     $aip->part = 0;
     $aip->id = "{$aip->object}-{$aip->part}";
     $aip->created = TRUE;
@@ -207,13 +211,12 @@ EOQ;
  */
 function archidora_should_finalize_aip($aip) {
   // TODO: Factor in file size stuff...?
-  // TODO: Factor in the batch stuff?
   $max_age = variable_get('archidora_max_age', 300);
   if ($max_age < 0) {
     // Is a custom time; get it.
     $max_age = intval(variable_get('archidora_max_age_custom', 300));
   }
-  return (time() - intval($aip->created_time)) > $max_age;
+  return isset($aip->created_time) && ((time() - intval($aip->created_time)) > $max_age);
 }
 
 /**
@@ -225,11 +228,9 @@ function archidora_should_finalize_aip($aip) {
  */
 function archidora_get_request_base_headers() {
   return array(
-    'Authorization' => format_string('Basic !b64d', array(
-      '!b64d' => base64_encode(format_string('!user:!pass', array(
+    'Authorization' => format_string('Archivematica-API api_key="!api_key", username="!user"', array(
         '!user' => variable_get('archidora_user', 'archidora'),
-        '!pass' => variable_get('archidora_pass', ''),
-      ))),
+        '!api_key' => variable_get('archidora_api_key', ''),
     )),
     'Content-Type' => 'application/atom+xml;type=entry',
   );
@@ -273,7 +274,7 @@ function archidora_increment_aip_part($aip) {
   // Increment 'part' in {archidora_aip_base_state}.
   $q = <<<EOQ
 UPDATE {archidora_aip_base_state}
-SET part = part + 1, id = CONCAT(object, '-', part + 1)
+SET part = part + 1, id = CONCAT(object, '-', part)
 WHERE id = :id
 EOQ;
   db_query($q, array(':id' => $aip->id));
