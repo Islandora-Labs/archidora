@@ -120,7 +120,7 @@ function archidora_parse_deposit_receipt($response_body, $object, $aip_id) {
 
   $to_return = array();
   foreach ($to_parse as $field => $path) {
-    $elements = $xml->xpath('/atom:entry/atom:link[@rel="edit-media"]/@href');
+    $elements = $xml->xpath($path);
     $element = reset($elements);
     if ($element) {
       $to_return[$field] = (string) $element;
@@ -154,7 +154,7 @@ function archidora_lookup_aip(AbstractObject $object) {
 
   $q = <<<EOQ
 SELECT a.*, s.*
-FROM {archidora_aip_base_state} s LEFT JOIN {archidora_aips} a 
+FROM {archidora_aip_base_state} s LEFT JOIN {archidora_aips} a
   ON a.id = s.id
 WHERE s.object = :object
 EOQ;
@@ -256,13 +256,14 @@ function archidora_finalize_aip($aip) {
     ) + archidora_get_request_base_headers(),
   ));
 
-  if ($response->code === 200) {
+  if ($response->code == 200) {
     archidora_increment_aip_part($aip);
   }
   else {
-    watchdog('archidora', 'Failed to finalize AIP @aip. Code: @code', array(
+    watchdog('archidora', 'Failed to finalize AIP @aip. Code: @code Info: @info', array(
       '@aip' => $aip->id,
       '@code' => $response->code,
+      '@info' => print_r($response, TRUE),
     ), WATCHDOG_ERROR);
   }
 }
