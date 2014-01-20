@@ -17,7 +17,8 @@ function archidora_admin_form($form, &$form_state) {
   );
   $form['archivematica']['archidora_archivematica_url'] = array(
     '#type' => 'textfield',
-    '#title' => t('Archivematica URL'),
+    '#title' => t('Archivematica Base URL'),
+    '#description' => t('The base URL to use to contact Archivematica.'),
     '#default_value' => variable_get('archidora_archivematica_url', 'http://localhost'),
   );
   $form['archivematica']['archidora_space'] = array(
@@ -30,6 +31,7 @@ function archidora_admin_form($form, &$form_state) {
     '#type' => 'textfield',
     '#title' => t('Archivematica User'),
     '#description' => t('The username to use to connect to Archivematica.'),
+    '#required' => TRUE,
     '#default_value' => variable_get('archidora_user', 'archidora'),
   );
   $form['archivematica']['archidora_api_key'] = array(
