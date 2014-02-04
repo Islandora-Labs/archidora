@@ -37,6 +37,7 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     'headers' => array(
       // Content-Length is automatically determined, based on 'data'.
       'In-Progress' => 'true',
+      'Packaging' => 'METS',
     ) + archidora_get_request_base_headers(),
     'data' => file_get_contents($atom_file_uri),
   ));
@@ -219,7 +220,7 @@ function archidora_should_finalize_aip($aip) {
     // Is a custom time; get it.
     $max_age = intval(variable_get('archidora_max_age_custom', 300));
   }
-  return isset($aip->created_time) && ((time() - intval($aip->created_time)) > $max_age);
+  return (!isset($aip->finalized) || !$aip->finalized) && isset($aip->created_time) && ((time() - intval($aip->created_time)) > $max_age);
 }
 
 /**
@@ -257,10 +258,49 @@ function archidora_finalize_aip($aip) {
   ));
 
   if ($response->code == 200) {
+    watchdog('archidora', 'Finalized @aip.', array(
+      '@aip' => $aip->id,
+    ), WATCHDOG_INFO);
     archidora_increment_aip_part($aip);
+    $aip->finalized = '1';
+    db_update('archidora_aips')
+      ->fields(array(
+        'finalized' => $aip->finalized,
+      ))
+      ->condition('id', $aip->id)
+      ->execute();
   }
   else {
     watchdog('archidora', 'Failed to finalize AIP @aip. Code: @code Info: @info', array(
+      '@aip' => $aip->id,
+      '@code' => $response->code,
+      '@info' => print_r($response, TRUE),
+    ), WATCHDOG_ERROR);
+  }
+}
+
+/**
+ * Send request to delete an AIP.
+ *
+ * @param object $aip
+ *   Object describing the AIP, with a couple properties:
+ *   - se_iri: The SE-IRI, to which we need to make a DELETE request to delete
+ *     the AIP.
+ *   - id: The ID of the AIP, so was can report about it.
+ */
+function archidora_delete_aip($aip) {
+  $response = drupal_http_request($aip->se_iri, array(
+    'method' => 'DELETE',
+    'headers' => archidora_get_request_base_headers(),
+  ));
+
+  if ($response->code == 204) {
+    watchdog('archidora', 'Deleted @aip.', array(
+      '@aip' => $aip->id,
+    ), WATCHDOG_INFO);
+  }
+  else {
+    watchdog('archidora', 'Failed to delete AIP @aip. Code: @code Info: @info', array(
       '@aip' => $aip->id,
       '@code' => $response->code,
       '@info' => print_r($response, TRUE),

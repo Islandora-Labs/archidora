@@ -38,7 +38,7 @@ function archidora_schema() {
   );
 
   $schema['archidora_aips'] = array(
-    'description' => 'Information regarding unfinalized AIPs.',
+    'description' => 'Information regarding AIPs.',
     'fields' => array(
       'id' => array(
         'description' => 'The ID of this AIP.',
@@ -61,9 +61,28 @@ function archidora_schema() {
         'type' => 'blob',
         'not null' => TRUE,
       ),
+      'finalized' => array(
+        'description' => 'Indicate whether or not this AIP was finalized.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+        'default' => '0',
+      ),
     ),
     'primary key' => array('id'),
   );
 
   return $schema;
+}
+
+function archidora_update_7100() {
+  db_add_field('archidora_aips', 'finalized', array(
+    'description' => 'Indicate whether or not this AIP was finalized.',
+    'type' => 'int',
+    'size' => 'tiny',
+    'not null' => TRUE,
+    'unsigned' => TRUE,
+    'default' => '0',
+  ));
 }
