@@ -27,22 +27,23 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
   // Make request to add to AIP.
   // If $aip->em_iri, POST to it; otherwise, POST to create a new AIP.
   $archivematica_url = variable_get('archidora_archivematica_url', 'http://localhost');
+  $space_uuid = variable_get('archidora_space', '');
   $url = isset($aip->em_iri) ?
     $aip->em_iri :
-    "$archivematica_url/api/v2/transfer/create";
+    "$archivematica_url/api/v1/space/$space_uuid/sword/collection/";
 
   $response = drupal_http_request($url, array(
     'method' => 'POST',
     'headers' => array(
       // Content-Length is automatically determined, based on 'data'.
       'In-Progress' => 'true',
-      'Slug' => $aip->id,
+      'Packaging' => 'METS',
     ) + archidora_get_request_base_headers(),
-    'data' => rawurlencode(file_get_contents($atom_file_uri)),
+    'data' => file_get_contents($atom_file_uri),
   ));
   file_unmanaged_delete($atom_file_uri);
 
-  if ($response->code === 201) {
+  if ($response->code == 201) {
     $response_body = $response->data;
     if (!empty($response_body)) {
       $parsed = archidora_parse_deposit_receipt($response_body, $object, $aip->id);
@@ -84,10 +85,11 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
   }
   else {
     // Report error somehow...
-    watchdog('archidora', 'Got @code when attempting to add @pid to @aip.', array(
+    watchdog('archidora', 'Got @code when attempting to add @pid to @aip. Info: @info', array(
       '@code' => $response->code,
       '@pid' => $object->id,
       '@aip' => $aip->id,
+      '@info' => print_r($response, TRUE),
     ), WATCHDOG_ERROR);
   }
 }
@@ -119,7 +121,7 @@ function archidora_parse_deposit_receipt($response_body, $object, $aip_id) {
 
   $to_return = array();
   foreach ($to_parse as $field => $path) {
-    $elements = $xml->xpath('/atom:entry/atom:link[@rel="edit-media"]/@href');
+    $elements = $xml->xpath($path);
     $element = reset($elements);
     if ($element) {
       $to_return[$field] = (string) $element;
@@ -148,17 +150,17 @@ function archidora_parse_deposit_receipt($response_body, $object, $aip_id) {
  *   Either the AIP currently in progress, or a new AIP.
  */
 function archidora_lookup_aip(AbstractObject $object) {
-  module_load_include('inc', 'archidora', 'utilities');
+  module_load_include('inc', 'archidora', 'includes/utilities');
   $parent = archidora_get_parent($object);
 
   $q = <<<EOQ
-SELECT a.*
-FROM {archidora_aips} a INNER JOIN {archidora_aip_base_state} s
+SELECT a.*, s.*
+FROM {archidora_aip_base_state} s LEFT JOIN {archidora_aips} a
   ON a.id = s.id
 WHERE s.object = :object
 EOQ;
   $aip = db_query($q, array(
-    ':object' => $parent->id,
+    ':object' => $parent,
   ))->fetchObject();
 
   // We found an AIP, but it should be finalized (due to time constraint or
@@ -168,18 +170,24 @@ EOQ;
     archidora_increment_aip_part($aip);
 
     $aip = db_query($q, array(
-      ':object' => $parent->id,
+      ':object' => $parent,
     ))->fetchObject();
+    $aip->created = TRUE;
+  }
+  elseif ($aip && ($aip->created_time === NULL || $aip->em_iri === NULL || $aip->se_iri === NULL)) {
+    // Deal with potential error condition... Entry created in base state table,
+    // but request failed before we got to add entry to aips table.
     $aip->created = TRUE;
   }
   elseif (!$aip) {
     // Didn't appear to be any result... Let's fabricate sommat...
     $aip = new stdClass();
-    $aip->object = $parent->id;
+    $aip->object = $parent;
     $aip->part = 0;
     $aip->id = "{$aip->object}-{$aip->part}";
     $aip->created = TRUE;
-    db_insert('archidora_aip_base_state')
+    db_merge('archidora_aip_base_state')
+      ->key(array('object' => $aip->object))
       ->fields(array(
         'id' => $aip->id,
         'object' => $aip->object,
@@ -207,13 +215,12 @@ EOQ;
  */
 function archidora_should_finalize_aip($aip) {
   // TODO: Factor in file size stuff...?
-  // TODO: Factor in the batch stuff?
   $max_age = variable_get('archidora_max_age', 300);
   if ($max_age < 0) {
     // Is a custom time; get it.
     $max_age = intval(variable_get('archidora_max_age_custom', 300));
   }
-  return (time() - intval($aip->created_time)) > $max_age;
+  return (!isset($aip->finalized) || !$aip->finalized) && isset($aip->created_time) && ((time() - intval($aip->created_time)) > $max_age);
 }
 
 /**
@@ -225,11 +232,9 @@ function archidora_should_finalize_aip($aip) {
  */
 function archidora_get_request_base_headers() {
   return array(
-    'Authorization' => format_string('Basic !b64d', array(
-      '!b64d' => base64_encode(format_string('!user:!pass', array(
+    'Authorization' => format_string('Archivematica-API api_key="!api_key", username="!user"', array(
         '!user' => variable_get('archidora_user', 'archidora'),
-        '!pass' => variable_get('archidora_pass', ''),
-      ))),
+        '!api_key' => variable_get('archidora_api_key', ''),
     )),
     'Content-Type' => 'application/atom+xml;type=entry',
   );
@@ -252,13 +257,53 @@ function archidora_finalize_aip($aip) {
     ) + archidora_get_request_base_headers(),
   ));
 
-  if ($response->code === 200) {
+  if ($response->code == 200) {
+    watchdog('archidora', 'Finalized @aip.', array(
+      '@aip' => $aip->id,
+    ), WATCHDOG_INFO);
     archidora_increment_aip_part($aip);
+    $aip->finalized = '1';
+    db_update('archidora_aips')
+      ->fields(array(
+        'finalized' => $aip->finalized,
+      ))
+      ->condition('id', $aip->id)
+      ->execute();
   }
   else {
-    watchdog('archidora', 'Failed to finalize AIP @aip. Code: @code', array(
+    watchdog('archidora', 'Failed to finalize AIP @aip. Code: @code Info: @info', array(
       '@aip' => $aip->id,
       '@code' => $response->code,
+      '@info' => print_r($response, TRUE),
+    ), WATCHDOG_ERROR);
+  }
+}
+
+/**
+ * Send request to delete an AIP.
+ *
+ * @param object $aip
+ *   Object describing the AIP, with a couple properties:
+ *   - se_iri: The SE-IRI, to which we need to make a DELETE request to delete
+ *     the AIP.
+ *   - id: The ID of the AIP, so was can report about it.
+ */
+function archidora_delete_aip($aip) {
+  $response = drupal_http_request($aip->se_iri, array(
+    'method' => 'DELETE',
+    'headers' => archidora_get_request_base_headers(),
+  ));
+
+  if ($response->code == 204) {
+    watchdog('archidora', 'Deleted @aip.', array(
+      '@aip' => $aip->id,
+    ), WATCHDOG_INFO);
+  }
+  else {
+    watchdog('archidora', 'Failed to delete AIP @aip. Code: @code Info: @info', array(
+      '@aip' => $aip->id,
+      '@code' => $response->code,
+      '@info' => print_r($response, TRUE),
     ), WATCHDOG_ERROR);
   }
 }
@@ -273,7 +318,7 @@ function archidora_increment_aip_part($aip) {
   // Increment 'part' in {archidora_aip_base_state}.
   $q = <<<EOQ
 UPDATE {archidora_aip_base_state}
-SET part = part + 1, id = CONCAT(object, '-', part + 1)
+SET part = part + 1, id = CONCAT(object, '-', part)
 WHERE id = :id
 EOQ;
   db_query($q, array(':id' => $aip->id));
@@ -294,28 +339,6 @@ EOQ;
 function archidora_get_atom_entry(AbstractObject $object, $aip) {
   // Build up an ATOM entry for the given object...
   $file_uri = file_create_filename("atom.xml", 'public://');
-  $xml = new XMLWriter();
-  $xml->openURI($file_uri);
-  $xml->startDocument('1.0', 'UTF-8');
-  $xml->startElementNS('atom', 'entry', 'http://www.w3.org/2005/Atom');
-
-  $xml->startElementNS('atom', 'title', NULL);
-  $xml->text($object->label);
-  $xml->endElement();
-
-  $xml->startElementNS('atom', 'id', NULL);
-  $xml->text($aip->id);
-  $xml->endElement();
-
-  $xml->startElementNS('atom', 'updated', NULL);
-  $xml->text($object->lastModifiedDate->format(DateTime::ATOM));
-  $xml->endElement();
-
-  $xml->startElementNS('atom', 'author', NULL);
-  $xml->startElementNS('atom', 'name', NULL);
-  $xml->text($object->owner);
-  $xml->endElement();
-  $xml->endElement();
 
   // Grab the migration METS export and dump in.
   $exported_mets = $object->repository->api->m->export($object->id, array(
@@ -323,18 +346,8 @@ function archidora_get_atom_entry(AbstractObject $object, $aip) {
     'context' => 'migrate',
     'encoding' => 'UTF-8',
   ));
-  // XXX: Strip off the "<?xml version, encoding..." bit.
-  if (strpos($exported_mets, '<?xml') === 0) {
-    $dom = new DOMDocument();
-    $dom->preserveWhiteSpace = FALSE;
-    $dom->loadXML($exported_mets);
-    $exported_mets = $dom->saveXML($dom->documentElement);
-  }
-  $xml->writeRaw($exported_mets);
+  file_put_contents($file_uri, $exported_mets);
 
-  $xml->endElement();
-  $xml->endDocument();
-  $xml->flush();
   return $file_uri;
 }
 
