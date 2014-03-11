@@ -365,3 +365,46 @@ function archidora_get_em_iri_from_object(AbstractObject $object) {
   $em_iri = reset($em_iris);
   return $em_iri ? $em_iri['object']['value'] : FALSE;
 }
+
+/**
+ * Retrieves the se_iri for use in making requests to the API.
+ */
+function archidora_get_se_iri_from_em_iri($em_iri) {
+  $result = db_query('SELECT se_iri from {archidora_aips} WHERE em_iri = :em_iri', array(':em_iri' => $em_iri));
+  return $result->fetchColumn();
+}
+
+
+/**
+ * Retrieves the status message for an object.
+ *
+ * @param AbstractObject $object
+ *   An AbstractObject representing an object within Fedora.
+ *
+ * @return string
+ *   A string describing the status of the object in Archivematica.emo
+ */
+function archidora_get_status_from_object(AbstractObject $object) {
+  $em_iri = archidora_get_em_iri_from_object($object);
+  // If this object is part of an AIP let's go check the status.
+  if ($em_iri) {
+    // Parse the em_iri to get the right call for status.
+    $se_iri = archidora_get_se_iri_from_em_iri($em_iri);
+    $status_endpoint = "$se_iri/state";
+
+    $response = drupal_http_request($status_endpoint, array(
+      'method' => 'GET',
+      'headers' => archidora_get_request_base_headers(),
+    ));
+    if ($response->code != 200) {
+      return t('Error connecting to Archivematica.');
+    }
+    else {
+      // Parse the status out of the data.
+      $data_xml = new SimpleXMLElement($response->data);
+      $status = $data_xml->xpath('/atom:feed/atom:category/text()');
+      return (string) reset($status);
+    }
+  }
+  return t('Not currently in Archivematica.');
+}
