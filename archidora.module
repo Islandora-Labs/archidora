@@ -66,7 +66,8 @@ function archidora_islandora_derivative(AbstractObject $object) {
 function archidora_permission() {
   return array(
     'administer archivematica integration' => array(
-      'title' => 'Administer settings for Archivematica integration and display the Archivematica tab on objects.',
+      'title' => t('Administer Archivematica Integration'),
+      'description' => t('Administer settings for Archivematica integration and display the Archivematica tab on objects.'),
     ),
   );
 }
