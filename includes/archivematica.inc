@@ -230,8 +230,8 @@ function archidora_should_finalize_aip($aip) {
   }
   $max_size = variable_get('archidora_max_size', 1073741824);
   return (!isset($aip->finalized) || !$aip->finalized) &&
-  (isset($aip->created_time) && ((time() - intval($aip->created_time)) > $max_age)) ||
-  ($aip->size > $max_size);
+  (isset($aip->created_time) && ((time() - intval($aip->created_time)) > $max_age) ||
+  ($aip->size > $max_size));
 }
 
 /**
