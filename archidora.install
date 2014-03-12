@@ -76,6 +76,9 @@ function archidora_schema() {
   return $schema;
 }
 
+/**
+ * Adds the AIP finalized column to the AIPs table.
+ */
 function archidora_update_7100() {
   db_add_field('archidora_aips', 'finalized', array(
     'description' => 'Indicate whether or not this AIP was finalized.',

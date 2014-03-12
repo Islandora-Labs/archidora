@@ -19,11 +19,18 @@ function archidora_menu() {
     'title' => 'Archivematica Integration',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('archidora_admin_form'),
-    'access arguments' => array('administer site configuration'),
+    'access arguments' => array('administer archivematica integration'),
     'type' => MENU_NORMAL_ITEM,
     'file' => 'includes/admin.form.inc',
   );
-
+  $items['islandora/object/%islandora_object/manage/archivematica'] = array(
+    'title' => 'Archivematica',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('archidora_object_status_form', 2),
+    'access arguments' => array('administer archivematica integration'),
+    'file' => 'includes/object.form.inc',
+  );
   return $items;
 }
 
@@ -51,4 +58,16 @@ function archidora_islandora_derivative(AbstractObject $object) {
   }
 
   return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function archidora_permission() {
+  return array(
+    'administer archivematica integration' => array(
+      'title' => t('Administer Archivematica Integration'),
+      'description' => t('Administer settings for Archivematica integration and display the Archivematica tab on objects.'),
+    ),
+  );
 }
