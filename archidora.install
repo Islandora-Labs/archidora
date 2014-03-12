@@ -69,6 +69,13 @@ function archidora_schema() {
         'unsigned' => TRUE,
         'default' => '0',
       ),
+      'size' => array(
+        'description' => 'The total size of the OBJs currently in the AIP.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+        'default' => '0',
+      ),
     ),
     'primary key' => array('id'),
   );
@@ -84,6 +91,19 @@ function archidora_update_7100() {
     'description' => 'Indicate whether or not this AIP was finalized.',
     'type' => 'int',
     'size' => 'tiny',
+    'not null' => TRUE,
+    'unsigned' => TRUE,
+    'default' => '0',
+  ));
+}
+
+/**
+ * Adds the size column to the AIPs table used to calculating total size.
+ */
+function archidora_update_7101() {
+  db_add_field('archidora_aips', 'size', array(
+    'description' => 'The total size of the OBJs currently in the AIP.',
+    'type' => 'int',
     'not null' => TRUE,
     'unsigned' => TRUE,
     'default' => '0',

@@ -93,7 +93,49 @@ function archidora_admin_form($form, &$form_state) {
       ),
     ),
   );
-
+  $size_options = array(
+    1048576,
+    4 * 1048576,
+    16 * 1048576,
+    64 * 1048576,
+    256 * 1048576,
+    512 * 1048576,
+    1073741824,
+    1073741824 * 4,
+    1073741824 * 16,
+    1073741824 * 64,
+  );
+  $size_options = array(
+    -1 => t('Custom'),
+  ) + array_map('format_size', drupal_map_assoc($size_options));
+  $form['archidora_max_size'] = array(
+    '#type' => 'select',
+    '#title' => t('AIP Max Size'),
+    '#description' => t('New objects will not be added to an AIP after it reaches this size, and it will be flagged for finalization at the next run.'),
+    '#options' => $size_options,
+    '#default_value' => variable_get('archidora_max_size', 1073741824),
+  );
+  $form['archidora_max_size_custom'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Custom max size'),
+    '#description' => t('An integer expression in bytes.'),
+    '#element_validate' => array(
+      'archidora_custom_max_size_provided',
+      'element_validate_integer_positive',
+    ),
+    '#states' => array(
+      'required' => array(
+        ':input[name="archidora_max_size"]' => array(
+          'value' => -1,
+        ),
+      ),
+      'visible' => array(
+        ':input[name="archidora_max_size"]' => array(
+          'value' => -1,
+        ),
+      ),
+    ),
+  );
   return system_settings_form($form);
 }
 
@@ -102,6 +144,17 @@ function archidora_admin_form($form, &$form_state) {
  */
 function archidora_custom_max_age_provided($element, &$form_state) {
   if ($form_state['values']['archidora_max_age'] == -1 && $element['#value'] == '') {
+    form_error($element, t('%name must be provided.', array(
+      '%name' => $element['#title'],
+    )));
+  }
+}
+
+/**
+ * Element validate callback; require a value, dependant on another field.
+ */
+function archidora_custom_max_size_provided($element, &$form_state) {
+  if ($form_state['values']['archidora_max_size'] == -1 && $element['#value'] == '') {
     form_error($element, t('%name must be provided.', array(
       '%name' => $element['#title'],
     )));
