@@ -62,10 +62,7 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     }
     // Since we are only worried about the OBJ let's go get it now.
     if (isset($object['OBJ'])) {
-      $size = $object['OBJ']->size;
-    }
-    else {
-      $size = 0;
+      $aip->size += $object['OBJ']->size;
     }
     if ($aip->created) {
       db_insert('archidora_aips')
@@ -74,13 +71,15 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
           'created_time' => $aip->created_time,
           'em_iri' => $aip->em_iri,
           'se_iri' => $aip->se_iri,
-          'size' => $size,
+          'size' => $aip->size,
         ))
         ->execute();
     }
     else {
       db_update('archidora_aips')
-        ->expression('size', "size + :size", array(':size' => $size))
+        ->fields(array(
+          'size' => $aip->size,
+        ))
         ->condition('id', $aip->id)
         ->execute();
     }
@@ -195,6 +194,7 @@ EOQ;
     $aip->part = 0;
     $aip->id = "{$aip->object}-{$aip->part}";
     $aip->created = TRUE;
+    $aip->size = 0;
     db_merge('archidora_aip_base_state')
       ->key(array('object' => $aip->object))
       ->fields(array(
