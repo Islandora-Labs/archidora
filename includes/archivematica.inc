@@ -60,7 +60,10 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
         '@aip' => $aip->id,
       ), WATCHDOG_ERROR);
     }
-
+    // Since we are only worried about the OBJ let's go get it now.
+    if (isset($object['OBJ'])) {
+      $aip->size += $object['OBJ']->size;
+    }
     if ($aip->created) {
       db_insert('archidora_aips')
         ->fields(array(
@@ -68,12 +71,17 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
           'created_time' => $aip->created_time,
           'em_iri' => $aip->em_iri,
           'se_iri' => $aip->se_iri,
+          'size' => $aip->size,
         ))
         ->execute();
     }
     else {
-      // No-op: Nothing to update in {archidora_aips}...  Yet...
-      // TODO: Adjust size stored in table when successful, for AM-4?
+      db_update('archidora_aips')
+        ->fields(array(
+          'size' => $aip->size,
+        ))
+        ->condition('id', $aip->id)
+        ->execute();
     }
 
     if (isset($aip->em_iri)) {
@@ -186,6 +194,7 @@ EOQ;
     $aip->part = 0;
     $aip->id = "{$aip->object}-{$aip->part}";
     $aip->created = TRUE;
+    $aip->size = 0;
     db_merge('archidora_aip_base_state')
       ->key(array('object' => $aip->object))
       ->fields(array(
@@ -214,13 +223,15 @@ EOQ;
  *   TRUE if we should finalize; otherwise, FALSE.
  */
 function archidora_should_finalize_aip($aip) {
-  // TODO: Factor in file size stuff...?
   $max_age = variable_get('archidora_max_age', 300);
   if ($max_age < 0) {
     // Is a custom time; get it.
     $max_age = intval(variable_get('archidora_max_age_custom', 300));
   }
-  return (!isset($aip->finalized) || !$aip->finalized) && isset($aip->created_time) && ((time() - intval($aip->created_time)) > $max_age);
+  $max_size = variable_get('archidora_max_size', 1073741824);
+  return (!isset($aip->finalized) || !$aip->finalized) &&
+  (isset($aip->created_time) && ((time() - intval($aip->created_time)) > $max_age) ||
+  ($aip->size > $max_size));
 }
 
 /**
