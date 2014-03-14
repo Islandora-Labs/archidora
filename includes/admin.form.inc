@@ -40,6 +40,17 @@ function archidora_admin_form($form, &$form_state) {
     '#description' => t('The API key for the user indicated above.'),
     '#default_value' => variable_get('archidora_api_key', ''),
   );
+  $form['archivematica']['archidora_islandora_api_key'] = array(
+    '#type' => 'item',
+    '#title' => t('Islandora Archivematica integration API Key'),
+    '#description' => t('The API key generated via Islandora.'),
+    '#markup' => variable_get('archidora_islandora_api_key', ''),
+  );
+  $form['archivematica']['archidora_islandora_api_key_submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Generate'),
+    '#submit' => array('archidora_generate_islandora_api_key'),
+  );
   $form['archidora_em_iri_solr_field'] = array(
     '#type' => 'textfield',
     '#title' => t('EM-IRI Solr field'),
@@ -159,4 +170,11 @@ function archidora_custom_max_size_provided($element, &$form_state) {
       '%name' => $element['#title'],
     )));
   }
+}
+
+/**
+ * Submit handler to generate an API key for use in Archivematica.
+ */
+function archidora_generate_islandora_api_key() {
+  variable_set('archidora_islandora_api_key', bin2hex(drupal_random_bytes(32)));
 }
