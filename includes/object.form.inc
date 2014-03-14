@@ -19,7 +19,7 @@
  */
 function archidora_object_status_form($form, &$form_state, AbstractObject $object) {
   if (!in_array('islandora:collectionCModel', $object->models)) {
-  module_load_include('inc', 'archidora', 'includes/archivematica');
+    module_load_include('inc', 'archidora', 'includes/archivematica');
     $form['status_fieldset'] = array(
       '#type' => 'fieldset',
       '#title' => t('Status'),
