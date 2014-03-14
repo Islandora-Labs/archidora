@@ -7,6 +7,7 @@
 
 
 define('ARCHIDORA_RDF_URI', 'http://islandora.ca/archivematica#');
+define('ARCHIDORA_OBJ_DELETION', 'isReadyForDeletion');
 
 
 /**
@@ -30,6 +31,14 @@ function archidora_menu() {
     'page arguments' => array('archidora_object_status_form', 2),
     'access arguments' => array('administer archivematica integration'),
     'file' => 'includes/object.form.inc',
+  );
+  $items['islandora/object/%islandora_object/archidora/%/delete'] = array(
+    'title' => 'Archivematica Delete Object',
+    'type' => MENU_CALLBACK,
+    'page callback' => 'archidora_obj_delete_page_callback',
+    'page arguments' => array(2),
+    'access callback' => 'archidora_obj_delete_access_callback',
+    'access arguments' => array(2, 4),
   );
   return $items;
 }
@@ -84,4 +93,37 @@ function archidora_cron() {
   $aips = $q->execute()->fetchAll();
   $to_finalize = array_filter($aips, 'archidora_should_finalize_aip');
   array_map('archidora_finalize_aip', $to_finalize);
+}
+
+
+/**
+ * Access callback for updating an object's OBJ's RELS-INT to flag deletion.
+ *
+ * @param AbstractObject $object
+ *   An AbstractObject representing an object within Fedora.
+ * @param string $passed_token
+ *   The API token defined on the administration page for the module.
+ *
+ * @return bool
+ *   TRUE if allowed, FALSE otherwise.
+ */
+function archidora_obj_delete_access_callback(AbstractObject $object, $passed_token) {
+  $api_token = variable_get('archidora_islandora_api_key', '');
+  return $api_token == $passed_token;
+}
+
+/**
+ * Page callback to flag an object's OBJ datastream for deletion.
+ *
+ * @param AbstractObject $object
+ *   An AbstractObject representing an object within Fedora.
+ */
+function archidora_obj_delete_page_callback(AbstractObject $object) {
+  if (isset($object['OBJ'])) {
+    $object['OBJ']->relationships->add(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION, 'TRUE', RELS_TYPE_PLAIN_LITERAL);
+    watchdog('archidora', 'The object @obj has had its OBJ flagged for deletion!', array('@obj' => $object->id), WATCHDOG_INFO);
+  }
+  else {
+    watchdog('archidora', 'The object @obj does not contain an OBJ datastream to mark for deletion!', array('@obj' => $object->id), WATCHDOG_WARNING);
+  }
 }
