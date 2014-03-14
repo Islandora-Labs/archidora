@@ -109,7 +109,7 @@ function archidora_cron() {
  */
 function archidora_obj_delete_access_callback(AbstractObject $object, $passed_token) {
   $api_token = variable_get('archidora_islandora_api_key', '');
-  return $api_token == $passed_token;
+  return !empty($api_token) && $api_token == $passed_token;
 }
 
 /**
