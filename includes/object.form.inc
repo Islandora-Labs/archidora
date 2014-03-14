@@ -18,7 +18,13 @@
  *   The Drupal form to be rendered.
  */
 function archidora_object_status_form($form, &$form_state, AbstractObject $object) {
-  if (!in_array('islandora:collectionCModel', $object->models)) {
+  $collection_cmodels = array(
+    'islandora:collectionCModel',
+    'islandora:newspaperIssueCModel',
+    'islandora:newspaperCModel',
+    'islandora:bookCModel',
+  );
+  if (!array_intersect($collection_cmodels, $object->models)) {
     module_load_include('inc', 'archidora', 'includes/archivematica');
     $form['status_fieldset'] = array(
       '#type' => 'fieldset',
@@ -33,6 +39,41 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
     $form['submit'] = array(
       '#type' => 'submit',
       '#value' => t('Send to Archivematica'),
+    );
+  }
+  else {
+    // Go get all the objects that have been flagged for deletion in this
+    // collection.
+    $objects_query = <<<EOQ
+SELECT ?object ?label FROM <#ri> WHERE {
+  {
+  ?object <fedora-rels-ext:isMemberOf> <info:fedora/$object->id>
+  }
+  UNION
+  {
+  ?object <fedora-rels-ext:isMemberOfCollection> <info:fedora/$object->id>
+  }
+  ?object <fedora-view:disseminates> [<http://islandora.ca/archivematica#isReadyForDeletion> 'TRUE'] ;
+          <fedora-model:label> ?label
+}
+EOQ;
+    $results = $object->repository->ri->sparqlQuery($objects_query);
+    $rows = array();
+    foreach ($results as $result) {
+      $rows[$result['object']['value']] = array(
+        l($result['label']['value'], "islandora/object/{$result['object']['value']}"),
+        l(t('delete'), "islandora/object/{$result['object']['value']}/datastream/OBJ/delete"),
+      );
+    }
+    $form['object_deletion_table'] = array(
+      '#theme' => 'table',
+      '#rows' => $rows,
+      '#header' => array(
+        'Object',
+        'Operations',
+      ),
+      '#empty' => t('No OBJs currently awaiting deletion.'),
+      '#caption' => t('Objects with OBJs awaiting deletion'),
     );
   }
   return $form;
