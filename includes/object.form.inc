@@ -18,21 +18,23 @@
  *   The Drupal form to be rendered.
  */
 function archidora_object_status_form($form, &$form_state, AbstractObject $object) {
+  if (!in_array('islandora:collectionCModel', $object->models)) {
   module_load_include('inc', 'archidora', 'includes/archivematica');
-  $form['status_fieldset'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Status'),
-    '#collapsed' => TRUE,
-    '#collapsible' => FALSE,
-  );
-  $form['status_fieldset']['status'] = array(
-    '#type' => 'markup',
-    '#markup' => archidora_get_status_from_object($object),
-  );
-  $form['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Send to Archivematica'),
-  );
+    $form['status_fieldset'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Status'),
+      '#collapsed' => TRUE,
+      '#collapsible' => FALSE,
+    );
+    $form['status_fieldset']['status'] = array(
+      '#type' => 'markup',
+      '#markup' => archidora_get_status_from_object($object),
+    );
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Send to Archivematica'),
+    );
+  }
   return $form;
 }
 
