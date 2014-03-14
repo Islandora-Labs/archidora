@@ -61,7 +61,7 @@ EOQ;
     $rows = array();
     foreach ($results as $result) {
       $rows[$result['object']['value']] = array(
-        l($result['label']['value'], "islandora/object/{$result['object']['value']}"),
+        l(filter_xss($result['label']['value']), "islandora/object/{$result['object']['value']}"),
         l(t('delete'), "islandora/object/{$result['object']['value']}/datastream/OBJ/delete"),
       );
     }
@@ -69,8 +69,8 @@ EOQ;
       '#theme' => 'table',
       '#rows' => $rows,
       '#header' => array(
-        'Object',
-        'Operations',
+        t('Object'),
+        t('Operations'),
       ),
       '#empty' => t('No OBJs currently awaiting deletion.'),
       '#caption' => t('Objects with OBJs awaiting deletion'),
