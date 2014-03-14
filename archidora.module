@@ -71,3 +71,17 @@ function archidora_permission() {
     ),
   );
 }
+
+/**
+ * Implements hook_cron().
+ */
+function archidora_cron() {
+  $q = db_select('archidora_aips', 'a')
+    ->fields('a', array())
+    ->condition('finalized', 0);
+
+  module_load_include('inc', 'archidora', 'includes/archivematica');
+  $aips = $q->execute()->fetchAll();
+  $to_finalize = array_filter($aips, 'archidora_should_finalize_aip');
+  array_map('archidora_finalize_aip', $to_finalize);
+}
