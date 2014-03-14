@@ -127,3 +127,12 @@ function archidora_obj_delete_page_callback(AbstractObject $object) {
     watchdog('archidora', 'The object @obj does not contain an OBJ datastream to mark for deletion!', array('@obj' => $object->id), WATCHDOG_WARNING);
   }
 }
+
+/**
+ * Implements hook_islandora_datastream_alter().
+ */
+function archidora_islandora_datastream_alter(AbstractObject $object, AbstractDatastream $datastream, array &$context) {
+  if ($context['action'] == 'purge') {
+    $datastream->relationships->remove(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION);
+  }
+}
