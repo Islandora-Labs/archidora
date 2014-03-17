@@ -120,8 +120,12 @@ function archidora_obj_delete_access_callback(AbstractObject $object, $passed_to
  */
 function archidora_obj_delete_page_callback(AbstractObject $object) {
   if (isset($object['OBJ'])) {
-    $object['OBJ']->relationships->add(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION, 'TRUE', RELS_TYPE_PLAIN_LITERAL);
-    watchdog('archidora', 'The object @obj has had its OBJ flagged for deletion!', array('@obj' => $object->id), WATCHDOG_INFO);
+    drupal_static_reset('islandora_get_tuque_connection');
+    $tuque = islandora_get_tuque_connection(user_load(1));
+    $tuque->cache->delete($object->id);
+    $non_cached = $tuque->repository->getObject($object->id);
+    $non_cached['OBJ']->relationships->add(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION, 'TRUE', RELS_TYPE_PLAIN_LITERAL);
+    watchdog('archidora', 'The object @obj has had its OBJ flagged for deletion!', array('@obj' => $non_cached->id), WATCHDOG_INFO);
   }
   else {
     watchdog('archidora', 'The object @obj does not contain an OBJ datastream to mark for deletion!', array('@obj' => $object->id), WATCHDOG_WARNING);
