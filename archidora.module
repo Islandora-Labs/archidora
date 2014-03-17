@@ -124,7 +124,10 @@ function archidora_obj_delete_page_callback(AbstractObject $object) {
     $tuque = islandora_get_tuque_connection(user_load(1));
     $tuque->cache->delete($object->id);
     $non_cached = $tuque->repository->getObject($object->id);
-    $non_cached['OBJ']->relationships->add(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION, 'TRUE', RELS_TYPE_PLAIN_LITERAL);
+    $rels_exists = $non_cached['OBJ']->relationships->get(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION);
+    if (empty($rels_exists)) {
+      $non_cached['OBJ']->relationships->add(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION, 'TRUE', RELS_TYPE_PLAIN_LITERAL);
+    }
     watchdog('archidora', 'The object @obj has had its OBJ flagged for deletion!', array('@obj' => $non_cached->id), WATCHDOG_INFO);
   }
   else {
