@@ -30,7 +30,7 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
   $space_uuid = variable_get('archidora_space', '');
   $url = isset($aip->em_iri) ?
     $aip->em_iri :
-    "$archivematica_url/api/v1/space/$space_uuid/sword/collection/";
+    "$archivematica_url/api/v1/location/$space_uuid/sword/collection";
 
   $response = drupal_http_request($url, array(
     'method' => 'POST',
