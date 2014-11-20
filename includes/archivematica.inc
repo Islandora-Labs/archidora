@@ -26,11 +26,19 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
   $atom_file_uri = archidora_get_atom_entry($object, $aip);
   // Make request to add to AIP.
   // If $aip->em_iri, POST to it; otherwise, POST to create a new AIP.
-  $archivematica_url = variable_get('archidora_archivematica_url', 'http://localhost');
-  $space_uuid = variable_get('archidora_space', '');
+  $deposit_location = variable_get('archidora_deposit_location', '');
+  if (!$deposit_location) {
+    watchdog('archidora', 'Unable to send @id to Archivematica: The deposit location has not been configured.', array(
+      '@id' => $object->id,
+    ));
+    drupal_set_message(t('Unable to send @id to Archivematica: The deposit location has not been configured.', array(
+      '@id' => $object->id,
+    )), 'warning', FALSE);
+    return;
+  }
   $url = isset($aip->em_iri) ?
     $aip->em_iri :
-    "$archivematica_url/api/v1/location/$space_uuid/sword/collection/";
+    $deposit_location;
 
   $response = drupal_http_request($url, array(
     'method' => 'POST',
