@@ -401,9 +401,10 @@ function archidora_get_se_iri_from_em_iri($em_iri) {
  *   An AbstractObject representing an object within Fedora.
  *
  * @return string
- *   A string describing the status of the object in Archivematica.emo
+ *   A string describing the status of the object in Archivematica.
  */
 function archidora_get_status_from_object(AbstractObject $object) {
+  $to_return = array();
   $em_iri = archidora_get_em_iri_from_object($object);
   // If this object is part of an AIP let's go check the status.
   if ($em_iri) {
@@ -416,14 +417,23 @@ function archidora_get_status_from_object(AbstractObject $object) {
       'headers' => archidora_get_request_base_headers(),
     ));
     if ($response->code != 200) {
-      return t('Error connecting to Archivematica.');
+      $to_return[] = t('Error connecting to Archivematica.');
     }
     else {
       // Parse the status out of the data.
       $data_xml = new SimpleXMLElement($response->data);
       $status = $data_xml->xpath('/atom:feed/atom:category/text()');
-      return (string) reset($status);
+      $to_return[] = (string) reset($status);
     }
   }
-  return t('Not currently in Archivematica.');
+  else {
+    $to_return[] = t('Not currently in Archivematica.');
+  }
+
+  module_load_include('inc', 'archidora', 'includes/derivatives');
+  if (archidora_is_in_queue($object)) {
+    $to_return[] = t('In the queue to be processed.');
+  }
+
+  return implode('<br/>', $to_return);
 }
