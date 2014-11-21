@@ -17,15 +17,30 @@ function archidora_admin_form($form, &$form_state) {
   );
   $form['archivematica']['archidora_archivematica_url'] = array(
     '#type' => 'textfield',
-    '#title' => t('Archivematica Base URL'),
-    '#description' => t('The base URL to use to contact Archivematica.'),
-    '#default_value' => variable_get('archidora_archivematica_url', 'http://localhost'),
+    '#title' => t('Archivematica Storage Service Base URL'),
+    '#description' => t('The base URL to use to contact the Archivematica Storage Service. Should include the scheme and the port.'),
+    '#default_value' => variable_get('archidora_archivematica_url', 'http://localhost:8000'),
+    '#ajax' => array(
+      'wrapper' => 'deposit-location-wrapper',
+      'callback' => 'archidora_ajax_deposit_location',
+    ),
   );
-  $form['archivematica']['archidora_space'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Archivematica Storage Space'),
-    '#description' => t('UUID representing which space in which AIPs will be created.'),
-    '#default_value' => variable_get('archidora_space', ''),
+  $options = archidora_admin_form_get_location_options(isset($form_state['values']['archidora_archivematica_url']) ?
+    $form_state['values']['archidora_archivematica_url'] :
+    variable_get('archidora_archivematica_url', '')
+  );
+
+  $form['archivematica']['wrapper'] = array(
+    '#prefix' => '<div id="deposit-location-wrapper">',
+    '#suffix' => '</div>',
+    'archidora_deposit_location' => array(
+      '#type' => 'select',
+      '#access' => !empty($options),
+      '#title' => t('Deposit Location'),
+      '#description' => t('The location in which AIPs will be created.'),
+      '#default_value' => variable_get('archidora_deposit_location', ''),
+      '#options' => $options,
+    ),
   );
   $form['archivematica']['archidora_user'] = array(
     '#type' => 'textfield',
@@ -177,4 +192,54 @@ function archidora_custom_max_size_provided($element, &$form_state) {
  */
 function archidora_generate_islandora_api_key() {
   variable_set('archidora_islandora_api_key', bin2hex(drupal_random_bytes(32)));
+}
+
+/**
+ * AJAX form callback.
+ */
+function archidora_ajax_deposit_location($form, $form_state) {
+  return $form['archivematica']['wrapper'];
+}
+
+/**
+ * Get the available SWORD endpoints from the given storage service.
+ *
+ * @param string $base_ss_url
+ *   Base URL to the storage service.
+ *
+ * @return array
+ *   An associative array mapping deposit location URIs to translated
+ *   human-readable strings.
+ */
+function archidora_admin_form_get_location_options($base_ss_url) {
+  $to_return = array();
+  $response = drupal_http_request("$base_ss_url/api/v1/sword");
+  if ($response->code == 200) {
+    $doc = new DOMDocument();
+    $doc->loadXML($response->data);
+    $xpath = new DOMXPath($doc);
+    $xpath->registerNamespace('s', 'http://www.w3.org/2007/app');
+    $xpath->registerNamespace('atom', 'http://www.w3.org/2005/Atom');
+
+    foreach ($xpath->query('/s:service/s:workspace/s:collection[@href]') as $location) {
+      $uri = $location->getAttribute('href');
+      $titles = $xpath->query('atom:title', $location);
+      $title = $titles->length > 0 ?
+        $titles->item(0)->nodeValue :
+        'N/A';
+
+      $to_return[$uri] = t('@title (@uri)', array(
+        '@title' => $title,
+        '@uri' => $uri,
+      ));
+    }
+  }
+  else {
+    drupal_set_message(t('Error contacting @url, HTTP code @code.', array(
+      '@url' => $base_ss_url,
+      '@code' => $response->code,
+    )), 'warning', FALSE);
+  }
+
+  return $to_return;
 }
