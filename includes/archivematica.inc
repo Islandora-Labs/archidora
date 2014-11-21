@@ -22,8 +22,20 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
   if ($aip === NULL) {
     $aip = archidora_lookup_aip($object);
   }
-
-  $atom_file_uri = archidora_get_atom_entry($object, $aip);
+  elseif ($aip === FALSE) {
+    // Let's go make a new AIP as this is for an individual object submission.
+    module_load_include('inc', 'archidora', 'includes/utilities');
+    $parent = archidora_get_parent($object);
+    $aip = new stdClass();
+    $aip->object = $parent;
+    $time = time();
+    $randomness = mt_rand(0, pow(2, 20));
+    $aip->id = "{$aip->object}--manual--{$time}--{$randomness}";
+    $aip->created = TRUE;
+    $aip->manual = TRUE;
+    $aip->size = 0;
+  }
+  $atom_file_uri = archidora_get_atom_entry($object);
   // Make request to add to AIP.
   // If $aip->em_iri, POST to it; otherwise, POST to create a new AIP.
   $deposit_location = variable_get('archidora_deposit_location', '');
@@ -44,14 +56,14 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     'method' => 'POST',
     'headers' => array(
       // Content-Length is automatically determined, based on 'data'.
-      'In-Progress' => 'true',
+      'In-Progress' => isset($aip->manual) ? 'false' : 'true',
       'Packaging' => 'METS',
     ) + archidora_get_request_base_headers(),
     'data' => file_get_contents($atom_file_uri),
   ));
   file_unmanaged_delete($atom_file_uri);
 
-  if ($response->code == 201) {
+  if ($response->code == 201 || (isset($aip->manual) && $response->code == 200)) {
     $response_body = $response->data;
     if (!empty($response_body)) {
       $parsed = archidora_parse_deposit_receipt($response_body, $object, $aip->id);
@@ -91,7 +103,6 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
         ->condition('id', $aip->id)
         ->execute();
     }
-
     if (isset($aip->em_iri)) {
       // Save EM-IRI onto $object, getting rid of any old ones.
       $object->relationships->remove(ARCHIDORA_RDF_URI, 'edit_media');
@@ -348,14 +359,12 @@ EOQ;
  *
  * @param AbstractObject $object
  *   The object for which to build the entry.
- * @param object $aip
- *   Object describing to which AIP this object should be added.
  *
  * @return string
  *   A generated file URI containing the ATOM entry. Delete it when you're done
  *   with it.
  */
-function archidora_get_atom_entry(AbstractObject $object, $aip) {
+function archidora_get_atom_entry(AbstractObject $object) {
   // Build up an ATOM entry for the given object...
   $file_uri = file_create_filename("atom.xml", 'public://');
 
