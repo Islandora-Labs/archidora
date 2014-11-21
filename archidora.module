@@ -167,6 +167,7 @@ function archidora_cron_queue_info() {
 
   $q['archidora_cron_queue'] = array(
     'worker callback' => 'archidora_cron_queue_callback',
+    'time' => 600,
   );
 
   return $q;
