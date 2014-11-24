@@ -90,7 +90,7 @@ EOQ;
 function archidora_object_status_form_submit($form, &$form_state) {
   module_load_include('inc', 'archidora', 'includes/archivematica');
   $object = menu_get_object('islandora_object', 2);
-  $success = archidora_send_to_archivematica($object);
+  $success = archidora_send_to_archivematica($object, FALSE);
   if ($success === NULL) {
     drupal_set_message(t('Unable to submit to Archivematica. Check the watchdog logs for more information.'), 'error');
   }

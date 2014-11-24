@@ -228,9 +228,9 @@ function archidora_admin_form_get_location_options($base_ss_url) {
         $titles->item(0)->nodeValue :
         'N/A';
 
-      $to_return[$uri] = t('@title (@uri)', array(
-        '@title' => $title,
-        '@uri' => $uri,
+      $to_return[$uri] = t('!title (!uri)', array(
+        '!title' => $title,
+        '!uri' => $uri,
       ));
     }
   }
