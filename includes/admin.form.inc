@@ -102,6 +102,7 @@ function archidora_admin_form($form, &$form_state) {
     '#type' => 'textfield',
     '#title' => t('Custom max age'),
     '#description' => t('An interval, expressed as seconds.'),
+    '#default_value' => variable_get('archidora_max_age_custom', ''),
     '#element_validate' => array(
       'archidora_custom_max_age_provided',
       'element_validate_integer_positive',
@@ -145,6 +146,7 @@ function archidora_admin_form($form, &$form_state) {
     '#type' => 'textfield',
     '#title' => t('Custom max size'),
     '#description' => t('An integer expression in bytes.'),
+    '#default_value' => variable_get('archidora_max_size_custom', ''),
     '#element_validate' => array(
       'archidora_custom_max_size_provided',
       'element_validate_integer_positive',
@@ -157,6 +159,48 @@ function archidora_admin_form($form, &$form_state) {
       ),
       'visible' => array(
         ':input[name="archidora_max_size"]' => array(
+          'value' => -1,
+        ),
+      ),
+    ),
+  );
+
+  $cron_options = array(
+    15,
+    30,
+    60,
+    300,
+    600,
+    1800,
+    3600,
+  );
+  $cron_options = array(
+    -1 => t('Custom'),
+  ) + array_map('format_interval', drupal_map_assoc($cron_options));
+  $form['archidora_cron_time'] = array(
+    '#type' => 'select',
+    '#title' => t('Cron Time'),
+    '#description' => t('The amount of time for which the queue of items will be allowed to process, at each cron invocation.'),
+    '#options' => $cron_options,
+    '#default_value' => variable_get('archidora_cron_time', 600),
+  );
+  $form['archidora_cron_time_custom'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Custom cron time'),
+    '#description' => t('An interval, expressed as seconds.'),
+    '#default_value' => variable_get('archidora_cron_time_custom', ''),
+    '#element_validate' => array(
+      'archidora_custom_cron_time_provided',
+      'element_validate_integer_positive',
+    ),
+    '#states' => array(
+      'required' => array(
+        ':input[name="archidora_cron_time"]' => array(
+          'value' => -1,
+        ),
+      ),
+      'visible' => array(
+        ':input[name="archidora_cron_time"]' => array(
           'value' => -1,
         ),
       ),
@@ -181,6 +225,17 @@ function archidora_custom_max_age_provided($element, &$form_state) {
  */
 function archidora_custom_max_size_provided($element, &$form_state) {
   if ($form_state['values']['archidora_max_size'] == -1 && $element['#value'] == '') {
+    form_error($element, t('%name must be provided.', array(
+      '%name' => $element['#title'],
+    )));
+  }
+}
+
+/**
+ * Element validate callback; require a value, dependant on another field.
+ */
+function archidora_custom_cron_time_provided($element, &$form_state) {
+  if ($form_state['values']['archidora_cron_time'] == -1 && $element['#value'] == '') {
     form_error($element, t('%name must be provided.', array(
       '%name' => $element['#title'],
     )));

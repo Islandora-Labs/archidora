@@ -165,9 +165,13 @@ function archidora_islandora_datastream_alter(AbstractObject $object, AbstractDa
 function archidora_cron_queue_info() {
   $q = array();
 
+  $cron_time = variable_get('archidora_cron_time', 600);
+  if ($cron_time < 0) {
+    $cron_time = variable_get('archidora_cron_time_custom', 600);
+  }
   $q['archidora_cron_queue'] = array(
     'worker callback' => 'archidora_cron_queue_callback',
-    'time' => 600,
+    'time' => $cron_time,
   );
 
   return $q;

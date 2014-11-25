@@ -120,3 +120,24 @@ function archidora_update_7102() {
     variable_del('archidora_space');
   }
 }
+
+/**
+ * Implements hook_uninstall().
+ */
+function archidora_uninstall() {
+  $vars = array(
+    'archidora_archivematica_url',
+    'archidora_deposit_location',
+    'archidora_user',
+    'archidora_api_key',
+    'archidora_islandora_api_key',
+    'archidora_em_iri_solr_field',
+    'archidora_max_age',
+    'archidora_max_age_custom',
+    'archidora_max_size',
+    'archidora_max_size_custom',
+    'archidora_cron_time',
+    'archidora_cron_time_custom',
+  );
+  array_map('variable_del', $vars);
+}
