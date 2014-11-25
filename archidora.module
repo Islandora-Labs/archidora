@@ -64,6 +64,21 @@ function archidora_islandora_derivative(AbstractObject $object) {
       ),
       'file' => "$mod_path/includes/derivatives.inc",
     );
+
+    // XXX: Workaround for broken hook filtering, for modifications
+    // (NULL -> NULL should always be run, or rather they should be left to
+    // figure out if they should run on their own).
+    foreach ($object as $datastream) {
+      $items[] = array(
+        'source_dsid' => $datastream->id,
+        'destination_dsid' => NULL,
+        'weight' => '1000',
+        'function' => array(
+          'archidora_derivative_callback',
+        ),
+        'file' => "$mod_path/includes/derivatives.inc",
+      );
+    }
   }
 
   return $items;
@@ -141,5 +156,53 @@ function archidora_obj_delete_page_callback(AbstractObject $object) {
 function archidora_islandora_datastream_alter(AbstractObject $object, AbstractDatastream $datastream, array &$context) {
   if ($context['action'] == 'purge') {
     $datastream->relationships->remove(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION);
+  }
+}
+
+/**
+ * Implements hook_cron_queue_info().
+ */
+function archidora_cron_queue_info() {
+  $q = array();
+
+  $cron_time = variable_get('archidora_cron_time', 600);
+  if ($cron_time < 0) {
+    $cron_time = variable_get('archidora_cron_time_custom', 600);
+  }
+  $q['archidora_cron_queue'] = array(
+    'worker callback' => 'archidora_cron_queue_callback',
+    'time' => $cron_time,
+  );
+
+  return $q;
+}
+
+/**
+ * Cron queue callback; send the given object to Archivematica.
+ *
+ * @param string $pid
+ *   The PID of an object to load and pass off to Archivematica.
+ */
+function archidora_cron_queue_callback($pid) {
+  static $tuque = NULL;
+
+  if ($tuque === NULL) {
+    // XXX: Need to be sure to have management permissions, since cron makes
+    // no guarantees about the user at runtime.
+    $user = user_load(1);
+    drupal_static_reset('islandora_get_tuque_connection');
+    $tuque = islandora_get_tuque_connection($user);
+    SimpleCache::resetCache();
+  }
+
+  $object = islandora_object_load($pid);
+  if ($object) {
+    module_load_include('inc', 'archidora', 'includes/archivematica');
+    archidora_send_to_archivematica($object);
+  }
+  else {
+    watchdog('archidora_cron_queue', 'Failed to load @id in order to send to Archivematica.', array(
+      '@id' => $pid,
+    ), WATCHDOG_WARNING, l(t('object page'), "islandora/object/{$pid}"));
   }
 }
