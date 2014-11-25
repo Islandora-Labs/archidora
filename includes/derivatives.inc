@@ -10,7 +10,10 @@
  */
 function archidora_derivative_callback($object, $force = FALSE) {
   module_load_include('inc', 'archidora', 'includes/archivematica');
-  archidora_enqueue_item($object);
+  module_load_include('inc', 'archidora', 'includes/utilities');
+  if (archidora_should_auto_enqueue($object->id)) {
+    archidora_enqueue_item($object);
+  }
 }
 
 /**

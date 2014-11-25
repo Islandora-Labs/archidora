@@ -24,6 +24,10 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
     'islandora:newspaperCModel',
     'islandora:bookCModel',
   );
+  $form['object'] = array(
+    '#type' => 'hidden',
+    '#default_value' => $object->id,
+  );
   if (!array_intersect($collection_cmodels, $object->models)) {
     module_load_include('inc', 'archidora', 'includes/archivematica');
     $form['status_fieldset'] = array(
@@ -42,6 +46,7 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
     );
   }
   else {
+    module_load_include('inc', 'archidora', 'includes/utilities');
     // Go get all the objects that have been flagged for deletion in this
     // collection.
     $objects_query = <<<EOQ
@@ -75,6 +80,17 @@ EOQ;
       '#empty' => t('No OBJs currently awaiting deletion.'),
       '#caption' => t('Objects with OBJs awaiting deletion'),
     );
+    $form['disable_auto_enqueument'] = array(
+      '#type' => 'checkbox',
+      '#title' => t("Don't Archive Children"),
+      '#description' => t("Don't enqueue children on ingest to be sent to archivematica."),
+      '#default_value' => archidora_auto_enqueue_disabled($object),
+    );
+    $form['#submit'] = array('archidora_aggregate_object_status_form_submit');
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save Settings'),
+    );
   }
   return $form;
 }
@@ -89,12 +105,26 @@ EOQ;
  */
 function archidora_object_status_form_submit($form, &$form_state) {
   module_load_include('inc', 'archidora', 'includes/archivematica');
-  $object = menu_get_object('islandora_object', 2);
+  $object = islandora_object_load($form_state['values']['object']);
   $success = archidora_send_to_archivematica($object, FALSE);
   if ($success === NULL) {
     drupal_set_message(t('Unable to submit to Archivematica. Check the watchdog logs for more information.'), 'error');
   }
   else {
     drupal_set_message(t('Successfully submitted to Archivematica.'));
+  }
+}
+
+/**
+ * Submit handler for the archivematica aggregate object status form.
+ */
+function archidora_aggregate_object_status_form_submit($form, &$form_state) {
+  module_load_include('inc', 'archidora', 'includes/utilities');
+  $object = islandora_object_load($form_state['values']['object']);
+  if ($form_state['values']['disable_auto_enqueument'] != archidora_auto_enqueue_disabled($object)) {
+    archidora_set_auto_enqueue_disabled(
+      $object,
+      $form_state['values']['disable_auto_enqueument']
+    );
   }
 }

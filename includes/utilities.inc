@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Utility functions...
+ * Utility functions.
  */
 
 /**
@@ -52,4 +52,55 @@ function archidora_skip_content_models() {
     'islandora:bookCModel',
     'islandora:compoundCModel',
   );
+}
+
+/**
+ * Checks if a PID should be enqueued for archivematica.
+ * @todo implement using hybrid approach as query on isMemberOf but ITQL walk on
+ * isMemberOfCollection.
+ */
+function archidora_should_auto_enqueue($pid) {
+  return !FALSE;
+}
+
+/**
+ * Sets wether an object's children shouldn't be auto sent to archivematica.
+ *
+ * @param AbstractObject $object
+ *   The object to set the RELS on.
+ * @param bool $disable
+ *   FALSE if the object's children should be automatically uploaded.
+ *   TRUE if the object's children should not be automatically uploaded.
+ */
+function archidora_set_auto_enqueue_disabled(AbstractObject $object, $disable) {
+  $relations = $object->relationships;
+  $relations->autoCommit = FALSE;
+
+  $relations->remove(
+    ARCHIDORA_RDF_URI,
+    ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN
+  );
+  $relations->add(
+    ARCHIDORA_RDF_URI,
+    ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN,
+    $disable ? 'TRUE' : 'FALSE',
+    RELS_TYPE_PLAIN_LITERAL
+  );
+
+  $relations->commitRelationships();
+}
+
+/**
+ * Wether an object's children shouldn't be auto sent to archivematica.
+ */
+function archidora_auto_enqueue_disabled(AbstractObject $object) {
+  $retrieved_rel = $object->relationships->get(
+    ARCHIDORA_RDF_URI,
+    ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN
+  );
+  if ($retrieved_rel) {
+    $reset_rel = reset($retrieved_rel);
+    return ($reset_rel['object']['value'] == 'TRUE');
+  }
+  return FALSE;
 }

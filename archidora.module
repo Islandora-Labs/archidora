@@ -5,10 +5,10 @@
  * Hook implementations.
  */
 
-
+// RDF.
 define('ARCHIDORA_RDF_URI', 'http://islandora.ca/archivematica#');
 define('ARCHIDORA_OBJ_DELETION', 'isReadyForDeletion');
-
+define('ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN', 'doNotAutoUploadChildren');
 
 /**
  * Implements hook_menu().
