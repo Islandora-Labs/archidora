@@ -10,9 +10,12 @@
  */
 function archidora_derivative_callback($object, $force = FALSE) {
   module_load_include('inc', 'archidora', 'includes/archivematica');
+  module_load_include('inc', 'archidora', 'includes/utilities');
 
   try {
-    if (!archidora_is_in_queue($object) && (!archidora_get_em_iri_from_object($object) || !archidora_did_the_last_modification_change_the_em_iri_value($object))) {
+    if (!archidora_is_in_queue($object) &&
+      (!archidora_get_em_iri_from_object($object) || !archidora_did_the_last_modification_change_the_em_iri_value($object)) &&
+      archidora_should_auto_enqueue($object->id)) {
       archidora_enqueue_item($object);
     }
   }
