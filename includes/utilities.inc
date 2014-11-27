@@ -105,7 +105,7 @@ function archidora_should_auto_enqueue($pid) {
 }
 
 /**
- * Sets wether an object's children shouldn't be auto sent to archivematica.
+ * Sets whether an object's children shouldn't be auto sent to archivematica.
  *
  * @param AbstractObject $object
  *   The object to set the RELS on.
@@ -132,7 +132,7 @@ function archidora_set_auto_enqueue_disabled(AbstractObject $object, $disable) {
 }
 
 /**
- * Wether an object's children shouldn't be auto sent to archivematica.
+ * Whether an object's children shouldn't be auto sent to archivematica.
  */
 function archidora_auto_enqueue_disabled(AbstractObject $object) {
   $retrieved_rel = $object->relationships->get(
