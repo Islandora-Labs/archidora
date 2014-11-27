@@ -105,8 +105,10 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     }
     if (isset($aip->em_iri)) {
       // Save EM-IRI onto $object, getting rid of any old ones.
+      $object->relationships->autoCommit = FALSE;
       $object->relationships->remove(ARCHIDORA_RDF_URI, 'edit_media');
       $object->relationships->add(ARCHIDORA_RDF_URI, 'edit_media', $aip->em_iri, RELS_TYPE_FULL_URI);
+      $object->relationships->autoCommit = TRUE;
     }
     return $aip;
   }
