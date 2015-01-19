@@ -145,3 +145,74 @@ function archidora_auto_enqueue_disabled(AbstractObject $object) {
   }
   return FALSE;
 }
+
+/**
+ * Purge a datastream if it exists.
+ *
+ * @param string $pid
+ *   The PID of the object to purge the datastream from.
+ * @param string $dsid
+ *   The DSID of the datastream to purge.
+ */
+function archidora_purge_datastream($pid, $dsid) {
+  $object = islandora_object_load($pid);
+  if ($object && isset($object[$dsid])) {
+    $object->purgeDatastream($dsid);
+  }
+}
+
+/**
+ * Objects that have been flagged for deletion in the aggregate.
+ *
+ * @param string $pid
+ *   The PID of the aggregate object.
+ * @param int $limit
+ *   The limit for the query.
+ * @param int $offset
+ *   The offset for the query.
+ *
+ * @return array
+ *   As returned by Tuque's sparqlQuery function with results of pid and label.
+ */
+function archidora_flagged_objs($pid, $limit, $offset) {
+  $objects_query = archidora_flagged_objs_query($pid);
+  $objects_query .= "LIMIT $limit OFFSET $offset";
+  $tuque = islandora_get_tuque_connection();
+  return $tuque->repository->ri->sparqlQuery($objects_query);
+}
+
+/**
+ * Count of objects that have been flagged for deletion in the aggregate.
+ *
+ * @param string $pid
+ *   The PID of the aggregate object.
+ *
+ * @return int
+ *   Count of flagged objects.
+ */
+function archidora_total_flagged_objs($pid) {
+  $objects_query = archidora_flagged_objs_query($pid);
+  $tuque = islandora_get_tuque_connection();
+  return $tuque->repository->ri->countQuery($objects_query, 'sparql');
+}
+
+/**
+ * A SPARQL query string for getting flagged objects based on an a parent PID.
+ */
+function archidora_flagged_objs_query($pid) {
+  return <<<EOQ
+SELECT ?object ?label FROM <#ri> WHERE {
+  {
+  ?object <fedora-rels-ext:isMemberOf> <info:fedora/$pid>
+  }
+  UNION
+  {
+  ?object <fedora-rels-ext:isMemberOfCollection> <info:fedora/$pid>
+  }
+  ?object <fedora-view:disseminates> [<http://islandora.ca/archivematica#isReadyForDeletion> 'TRUE'] ;
+          <fedora-model:label> ?label ;
+          <fedora-view:disseminates> ?ds .
+  ?ds <fedora-view:disseminationType> <info:fedora/*/OBJ>
+}
+EOQ;
+}
