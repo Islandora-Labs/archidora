@@ -114,15 +114,15 @@ function archidora_cron() {
 /**
  * Access callback for updating an object's OBJ's RELS-INT to flag deletion.
  *
- * @param AbstractObject $object
- *   An AbstractObject representing an object within Fedora.
+ * @param AbstractObject|string $object
+ *   An AbstractObject or PID representing an object within Fedora.
  * @param string $passed_token
  *   The API token defined on the administration page for the module.
  *
  * @return bool
  *   TRUE if allowed, FALSE otherwise.
  */
-function archidora_obj_delete_access_callback(AbstractObject $object, $passed_token) {
+function archidora_obj_delete_access_callback($object, $passed_token) {
   $api_token = variable_get('archidora_islandora_api_key', '');
   return !empty($api_token) && $api_token == $passed_token;
 }
@@ -130,20 +130,27 @@ function archidora_obj_delete_access_callback(AbstractObject $object, $passed_to
 /**
  * Page callback to flag an object's OBJ datastream for deletion.
  *
- * @param AbstractObject $object
- *   An AbstractObject representing an object within Fedora.
+ * @param AbstractObject|string $object
+ *   An AbstractObject or PID representing an object within Fedora.
  */
-function archidora_obj_delete_page_callback(AbstractObject $object) {
+function archidora_obj_delete_page_callback($possible_object) {
+  drupal_static_reset('islandora_get_tuque_connection');
+  $tuque = islandora_get_tuque_connection(user_load(1));
+  if (!is_object($possible_object)) {
+    $pid = arg(2);
+    $tuque->cache->delete($pid);
+    $object = $tuque->repository->getObject($pid);
+  }
+  else {
+    $tuque->cache->delete($possible_object->id);
+    $object = $tuque->repository->getObject($possible_object->id);
+  }
   if (isset($object['OBJ'])) {
-    drupal_static_reset('islandora_get_tuque_connection');
-    $tuque = islandora_get_tuque_connection(user_load(1));
-    $tuque->cache->delete($object->id);
-    $non_cached = $tuque->repository->getObject($object->id);
-    $rels_exists = $non_cached['OBJ']->relationships->get(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION);
+    $rels_exists = $object['OBJ']->relationships->get(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION);
     if (empty($rels_exists)) {
-      $non_cached['OBJ']->relationships->add(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION, 'TRUE', RELS_TYPE_PLAIN_LITERAL);
+      $object['OBJ']->relationships->add(ARCHIDORA_RDF_URI, ARCHIDORA_OBJ_DELETION, 'TRUE', RELS_TYPE_PLAIN_LITERAL);
     }
-    watchdog('archidora', 'The object @obj has had its OBJ flagged for deletion!', array('@obj' => $non_cached->id), WATCHDOG_INFO);
+    watchdog('archidora', 'The object @obj has had its OBJ flagged for deletion!', array('@obj' => $object->id), WATCHDOG_INFO);
   }
   else {
     watchdog('archidora', 'The object @obj does not contain an OBJ datastream to mark for deletion!', array('@obj' => $object->id), WATCHDOG_WARNING);

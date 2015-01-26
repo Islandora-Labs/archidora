@@ -47,38 +47,40 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
   }
   else {
     module_load_include('inc', 'archidora', 'includes/utilities');
-    // Go get all the objects that have been flagged for deletion in this
-    // collection.
-    $objects_query = <<<EOQ
-SELECT ?object ?label FROM <#ri> WHERE {
-  {
-  ?object <fedora-rels-ext:isMemberOf> <info:fedora/$object->id>
-  }
-  UNION
-  {
-  ?object <fedora-rels-ext:isMemberOfCollection> <info:fedora/$object->id>
-  }
-  ?object <fedora-view:disseminates> [<http://islandora.ca/archivematica#isReadyForDeletion> 'TRUE'] ;
-          <fedora-model:label> ?label
-}
-EOQ;
-    $results = $object->repository->ri->sparqlQuery($objects_query);
-    $rows = array();
+    $limit = 10;
+    $page = pager_find_page();
+    $offset = $limit * $page;
+    $results = archidora_flagged_objs($object->id, $limit, $offset);
+    $options = array();
     foreach ($results as $result) {
-      $rows[$result['object']['value']] = array(
+      $options[$result['object']['value']] = array(
         l(filter_xss($result['label']['value']), "islandora/object/{$result['object']['value']}"),
         l(t('delete'), "islandora/object/{$result['object']['value']}/datastream/OBJ/delete"),
       );
     }
+    $total = archidora_total_flagged_objs($object->id);
+    pager_default_initialize($total, $limit);
     $form['object_deletion_table'] = array(
-      '#theme' => 'table',
-      '#rows' => $rows,
+      '#type' => 'tableselect',
+      '#options' => $options,
       '#header' => array(
         t('Object'),
         t('Operations'),
       ),
       '#empty' => t('No OBJs currently awaiting deletion.'),
       '#caption' => t('Objects with OBJs awaiting deletion'),
+      '#suffix' => theme('pager'),
+    );
+    $form['delete_selected'] = array(
+      '#type' => 'submit',
+      '#value' => t('Delete Selected'),
+      '#delete_selected' => TRUE,
+    );
+    $form['delete_all'] = array(
+      '#type' => 'submit',
+      '#value' => t('Delete All'),
+      '#delete_all' => TRUE,
+      '#aggregate' => $object->id,
     );
     $form['disable_auto_enqueument'] = array(
       '#type' => 'checkbox',
@@ -119,12 +121,30 @@ function archidora_object_status_form_submit($form, &$form_state) {
  * Submit handler for the archivematica aggregate object status form.
  */
 function archidora_aggregate_object_status_form_submit($form, &$form_state) {
-  module_load_include('inc', 'archidora', 'includes/utilities');
-  $object = islandora_object_load($form_state['values']['object']);
-  if ($form_state['values']['disable_auto_enqueument'] != archidora_auto_enqueue_disabled($object)) {
-    archidora_set_auto_enqueue_disabled(
-      $object,
-      $form_state['values']['disable_auto_enqueument']
-    );
+  $trigger = &$form_state['triggering_element'];
+  if (isset($trigger['#delete_all']) || isset($trigger['#delete_selected'])) {
+    module_load_include('inc', 'archidora', 'includes/obj_purge.batch');
+    $to_purge = array();
+    if (isset($trigger['#aggregate'])) {
+      $to_purge = $trigger['#aggregate'];
+    }
+    else {
+      foreach ($form_state['values']['object_deletion_table'] as $pid => $purge) {
+        if ($purge) {
+          $to_purge[] = $pid;
+        }
+      }
+    }
+    batch_set(archidora_obj_purge_batch($to_purge));
+  }
+  else {
+    module_load_include('inc', 'archidora', 'includes/utilities');
+    $object = islandora_object_load($form_state['values']['object']);
+    if ($form_state['values']['disable_auto_enqueument'] != archidora_auto_enqueue_disabled($object)) {
+      archidora_set_auto_enqueue_disabled(
+        $object,
+        $form_state['values']['disable_auto_enqueument']
+      );
+    }
   }
 }
