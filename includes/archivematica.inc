@@ -56,7 +56,7 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     'method' => 'POST',
     'headers' => array(
       // Content-Length is automatically determined, based on 'data'.
-      'In-Progress' => isset($aip->manual) ? 'false' : 'true',
+      'In-Progress' => 'true',
       'Packaging' => 'METS',
     ) + archidora_get_request_base_headers(),
     'data' => file_get_contents($atom_file_uri),
@@ -116,6 +116,9 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
       $object,
       $aip,
     ));
+    if ($aip->manual) {
+      archidora_finalize_aip($aip);
+    }
 
     return $aip;
   }

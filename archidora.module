@@ -233,10 +233,16 @@ function archidora_archidora_object_sent(AbstractObject $object, $aip) {
   }
 
   module_load_include('inc', 'archidora', 'includes/archivematica');
+  // XXX: Need to flip a couple flags without changing the originals, so clone
+  // and go to town. Need to flip the flags to avoid trying to insert or
+  // finalize the AIP multiple times.
+  $aip_clone = clone $aip;
+  $aip_clone->created = FALSE;
+  $aip_clone->manual = FALSE;
   foreach (array_map('islandora_object_load', array_unique($parents)) as $parent) {
-    if (archidora_get_em_iri_from_object($parent) !== $aip->em_iri) {
+    if (archidora_get_em_iri_from_object($parent) !== $aip_clone->em_iri) {
       // Only add if not already present in the given AIP.
-      archidora_send_to_archivematica($parent, $aip);
+      archidora_send_to_archivematica($parent, $resubmit);
     }
   }
 }
