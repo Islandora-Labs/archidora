@@ -68,8 +68,8 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
         t('Operations'),
       ),
       '#empty' => t('No OBJs currently awaiting deletion.'),
-      '#caption' => t('Objects with OBJs awaiting deletion'),
-      '#suffix' => theme('pager'),
+      '#caption' => t('Objects with OBJs awaiting deletion.'),
+      '#aggregate' => $object->id,
     );
     $form['delete_selected'] = array(
       '#type' => 'submit',
@@ -80,6 +80,7 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
       '#type' => 'submit',
       '#value' => t('Delete All'),
       '#delete_all' => TRUE,
+      '#submit' => array('archidora_aggregate_object_confirm_form_submit'),
       '#aggregate' => $object->id,
     );
     $form['disable_auto_enqueument'] = array(
@@ -94,9 +95,46 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
       '#value' => t('Save Settings'),
     );
   }
+  $path = current_path();
   return $form;
 }
 
+/**
+ * Confirm form for Archivematica Delete All.
+ *
+ * @param array $form
+ *   An array representing a form within Drupal.
+ * @param array $form_state
+ *   An array containing the Drupal form state.
+ * @param AbstractObject $object
+ *   The object that is having its derivatives regenerated.
+ */
+function archidora_object_delete_confirm($form, &$form_state, AbstractObject $object) {
+  $form_state['object'] = $object->id;
+  return confirm_form($form,
+    t('Are you sure you want to delete OBJ datastreams in this collection?'),
+    "islandora/object/$object->id/manage/archivematica",
+    t('This will remove all OBJ datastreams. This action cannot be undone.'),
+    t('Delete'),
+    t('Cancel')
+  );
+}
+
+/**
+ * Submit handler for the Archivematica Delete All confirm form.
+ *
+ * @param array $form
+ *   An array representing a form within Drupal.
+ * @param array $form_state
+ *   An array containing the Drupal form state.
+ */
+function archidora_object_delete_confirm_submit($form, &$form_state) {
+  module_load_include('inc', 'archidora', 'includes/obj_purge.batch');
+  $to_purge = array();
+  $to_purge = islandora_object_load($form_state['object']);
+  batch_set(archidora_obj_purge_batch($to_purge));
+  $form_state['redirect'] = "islandora/object/$to_purge->id/manage/archivematica";
+}
 /**
  * Submit handler for the Archivematica object status form.
  *
@@ -118,33 +156,41 @@ function archidora_object_status_form_submit($form, &$form_state) {
 }
 
 /**
- * Submit handler for the archivematica aggregate object status form.
+ * Submit handler for Delete All.
+ *
+ * @param array $form
+ *   An array representing a form within Drupal.
+ * @param array $form_state
+ *   An array containing the Drupal form state.
+ */
+function archidora_aggregate_object_confirm_form_submit($form, &$form_state) {
+  $object = $form_state['values']['object'];
+  $form_state['redirect'] = "islandora/object/$object/archidora/delete_all";
+}
+
+/**
+ * Submit handler for the Archivematica Aggregate Object Status Form.
+ *
+ * @param array $form
+ *   An array representing a form within Drupal.
+ * @param array $form_state
+ *   An array containing the Drupal form state.
  */
 function archidora_aggregate_object_status_form_submit($form, &$form_state) {
-  $trigger = &$form_state['triggering_element'];
-  if (isset($trigger['#delete_all']) || isset($trigger['#delete_selected'])) {
-    module_load_include('inc', 'archidora', 'includes/obj_purge.batch');
-    $to_purge = array();
-    if (isset($trigger['#aggregate'])) {
-      $to_purge = $trigger['#aggregate'];
+  module_load_include('inc', 'archidora', 'includes/obj_purge.batch');
+  $to_purge = array();
+  foreach ($form_state['values']['object_deletion_table'] as $pid => $purge) {
+    if ($purge) {
+      $to_purge[] = $pid;
     }
-    else {
-      foreach ($form_state['values']['object_deletion_table'] as $pid => $purge) {
-        if ($purge) {
-          $to_purge[] = $pid;
-        }
-      }
-    }
-    batch_set(archidora_obj_purge_batch($to_purge));
   }
-  else {
-    module_load_include('inc', 'archidora', 'includes/utilities');
-    $object = islandora_object_load($form_state['values']['object']);
-    if ($form_state['values']['disable_auto_enqueument'] != archidora_auto_enqueue_disabled($object)) {
-      archidora_set_auto_enqueue_disabled(
-        $object,
-        $form_state['values']['disable_auto_enqueument']
-      );
-    }
+  batch_set(archidora_obj_purge_batch($to_purge));
+  module_load_include('inc', 'archidora', 'includes/utilities');
+  $object = islandora_object_load($form_state['values']['object']);
+  if ($form_state['values']['disable_auto_enqueument'] != archidora_auto_enqueue_disabled($object)) {
+    archidora_set_auto_enqueue_disabled(
+      $object,
+      $form_state['values']['disable_auto_enqueument']
+    );
   }
 }
