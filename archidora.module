@@ -213,3 +213,30 @@ function archidora_cron_queue_callback($pid) {
     ), WATCHDOG_WARNING, l(t('object page'), "islandora/object/{$pid}"));
   }
 }
+
+/**
+ * Implements hook_archidora_object_sent().
+ */
+function archidora_archidora_object_sent(AbstractObject $object, $aip) {
+  $paged_content_models = array(
+    'islandora:newspaperPageCModel',
+    'islandora:pageCModel',
+  );
+  $parents = array();
+  if (array_intersect($paged_content_models, $object->models)) {
+    foreach ($object->relationships->get(FEDORA_RELS_EXT_URI, 'isMemberOf') as $relationship) {
+      $parents[] = $relationship['object']['value'];
+    }
+  }
+  foreach ($object->relationships->get(FEDORA_RELS_EXT_URI, variable_get('islandora_compound_object_relationship', 'isConstituentOf')) as $compound_parent) {
+    $parents[] = $compound_parent['object']['value'];
+  }
+
+  module_load_include('inc', 'archidora', 'includes/archivematica');
+  foreach (array_map('islandora_object_load', array_unique($parents)) as $parent) {
+    if (archidora_get_em_iri_from_object($parent) !== $aip->em_iri) {
+      // Only add if not already present in the given AIP.
+      archidora_send_to_archivematica($parent, $aip);
+    }
+  }
+}

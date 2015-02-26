@@ -110,6 +110,13 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
       $object->relationships->add(ARCHIDORA_RDF_URI, 'edit_media', $aip->em_iri, RELS_TYPE_FULL_URI);
       $object->relationships->autoCommit = TRUE;
     }
+
+    module_load_include('inc', 'islandora', 'includes/utilities');
+    islandora_invoke_hook_list('archidora_object_sent', $object->models, array(
+      $object,
+      $aip,
+    ));
+
     return $aip;
   }
   else {
