@@ -40,6 +40,13 @@ function archidora_menu() {
     'access callback' => 'archidora_obj_delete_access_callback',
     'access arguments' => array(2, 4),
   );
+  $items['islandora/object/%islandora_object/archidora/delete_all'] = array(
+    'title' => 'Archivematica Delete All',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('archidora_object_delete_confirm', 2),
+    'access callback' => TRUE,
+    'file' => 'includes/object.form.inc',
+  );
   return $items;
 }
 
@@ -130,7 +137,7 @@ function archidora_obj_delete_access_callback($object, $passed_token) {
 /**
  * Page callback to flag an object's OBJ datastream for deletion.
  *
- * @param AbstractObject|string $object
+ * @param AbstractObject|string $possible_object
  *   An AbstractObject or PID representing an object within Fedora.
  */
 function archidora_obj_delete_page_callback($possible_object) {
