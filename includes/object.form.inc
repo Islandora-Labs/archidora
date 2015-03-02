@@ -69,7 +69,7 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
       ),
       '#empty' => t('No OBJs currently awaiting deletion.'),
       '#caption' => t('Objects with OBJs awaiting deletion.'),
-      '#aggregate' => $object->id,
+      '#suffix' => theme('pager'),
     );
     $form['delete_selected'] = array(
       '#type' => 'submit',
@@ -81,7 +81,6 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
       '#value' => t('Delete All'),
       '#delete_all' => TRUE,
       '#submit' => array('archidora_aggregate_object_confirm_form_submit'),
-      '#aggregate' => $object->id,
     );
     $form['disable_auto_enqueument'] = array(
       '#type' => 'checkbox',
@@ -95,7 +94,6 @@ function archidora_object_status_form($form, &$form_state, AbstractObject $objec
       '#value' => t('Save Settings'),
     );
   }
-  $path = current_path();
   return $form;
 }
 
