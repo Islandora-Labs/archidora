@@ -21,10 +21,8 @@
 function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
   if ($aip === NULL) {
     $aip = archidora_lookup_aip($object);
-//file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "aip was null Looking up aip in archidora_send_to_archivematica found: " . $aip->id . "\n");
   }
   elseif ($aip === FALSE) {
-
     // Let's go make a new AIP as this is for an individual object submission.
     module_load_include('inc', 'archidora', 'includes/utilities');
     $parent = archidora_get_parent($object);
@@ -36,10 +34,8 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
     $aip->created = TRUE;
     $aip->manual = TRUE;
     $aip->size = 0;
- //   file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "aip was false archidora_send_to_archivematica got parent pid for aip: " . $aip->id . "\n");
   }
   $atom_file_uri = archidora_get_atom_entry($object);
-file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "atom file of aip: " . $atom_file_uri . "\n");
   // Make request to add to AIP.
   // If $aip->em_iri, POST to it; otherwise, POST to create a new AIP.
   $deposit_location = variable_get('archidora_deposit_location', '');
@@ -431,7 +427,6 @@ function archidora_get_se_iri_from_em_iri($em_iri) {
 function archidora_get_status_from_object(AbstractObject $object) {
   $to_return = array();
   $em_iri = archidora_get_em_iri_from_object($object);
-//var_dump($object->relationships);
   // If this object is part of an AIP let's go check the status.
   if ($em_iri) {
     // Parse the em_iri to get the right call for status.
