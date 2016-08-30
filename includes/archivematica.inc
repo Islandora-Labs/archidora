@@ -431,7 +431,7 @@ function archidora_get_status_from_object(AbstractObject $object) {
   if ($em_iri) {
     // Parse the em_iri to get the right call for status.
     $se_iri = archidora_get_se_iri_from_em_iri($em_iri);
-    $status_endpoint = "$se_iri/state";
+    $status_endpoint = $se_iri . "state";
 
     $response = drupal_http_request($status_endpoint, array(
       'method' => 'GET',
