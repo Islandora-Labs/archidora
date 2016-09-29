@@ -71,6 +71,10 @@ function archidora_send_collection_create_batch($target) {
  *   The context of the Drupal batch.
  */
 function archidora_send_collection_batch_operation($target, &$context) {
+  //Debugin 
+  file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Starting new batch: " . $target ."\n");
+
+  //Select object that are children and get count
   $object_update = 10;
   $query = <<<EOQ
 SELECT ?pid FROM <#ri>
@@ -101,17 +105,107 @@ EOQ;
     '@end' => min($sandbox['offset'] + $object_update, $sandbox['total']),
   ));
 
+  //Append to the query with offset so the set is not to large
   $offset_start = $sandbox['offset'];
   $query .= "
   LIMIT $object_update
   OFFSET $offset_start
   ";
   $results = $connection->repository->ri->sparqlQuery($query);
+
+  //Define the collections that need to be recursed into
+  $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
+  $pidArr = array(); 
+
   foreach ($results as $result) {
     module_load_include('inc', 'archidora', 'includes/archivematica');
     $object = islandora_object_load($result['pid']['value']);
-    archidora_send_to_archivematica($object);
+
+    //This was added for recursion
+    //get relationships
+    $relationships = $object->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
+
+    //test for collection
+    if(in_array($relationships[0]['object']['value'], $collections)){
+       //Debugin 
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found collection in top function: " . $result['pid']['value'] ."\n", FILE_APPEND);  
+       getSubCollectionPids($result['pid']['value'], $pidArr);
+    }else{
+	array_push($pidArr, $result['pid']['value']);
+
+       //Debugin 
+       $curPid = $result['pid']['value'];
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Adding in top function: " . $curPid ."\n", FILE_APPEND);
+       archidora_send_to_archivematica($object);
+    }//End if 
+
+   //End of recursion addition.  Following line needs to be added back in if it does not work
+   // archidora_send_to_archivematica($object);
   }
+
+  foreach($pidArr as $k => $v){
+  echo $v ."\n";
+    $object = islandora_object_load($v);
+    archidora_send_to_archivematica($object);
+    //var_dump($object);
+  }
+
+
+  //var_dump($pidArr);
+
+
+
   $sandbox['offset'] += $object_update;
   $context['finished'] = $sandbox['offset'] / $sandbox['total'];
 }
+
+
+function getSubCollectionPids($target, &$pidArr){
+
+  Global $repository;
+
+  //var_dump($collections);
+  $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
+
+  $query = <<<EOQ
+SELECT ?pid FROM <#ri>
+WHERE {
+    {
+  ?pid <fedora-rels-ext:isMemberOf> <info:fedora/$target>
+  }
+  UNION
+  {
+  ?pid <fedora-rels-ext:isMemberOfCollection> <info:fedora/$target>
+  }
+}
+EOQ;
+  $connection = islandora_get_tuque_connection();
+
+  $sparql_count = $connection->repository->ri->countQuery($query, 'sparql');
+  $results = $connection->repository->ri->sparqlQuery($query);
+
+  foreach ($results as $result) {
+
+       $fedoraObject = islandora_object_load($result['pid']['value']);
+       $relationships = $fedoraObject->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
+
+    if(in_array($relationships[0]['object']['value'], $collections)){
+       //This is where you need to recurse to get the rest.
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found subcollection in recurser: " . $result['pid']['value'] ."\n", FILE_APPEND);  
+       getSubCollectionPids($result['pid']['value'], $pidArr);
+       //echo "found sub function: " . $result['pid']['value'] . "\n";
+    }else{
+	//Here you add to array	
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found object in recurser: " . $result['pid']['value'] ."\n", FILE_APPEND);  
+	//echo "found object: " . $result['pid']['value'] . "\n";
+	array_push($pidArr, $result['pid']['value']);
+    }
+
+  }
+}
+
+
+
+
+
+
