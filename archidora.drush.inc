@@ -17,11 +17,15 @@ function archidora_drush_command() {
       'archidora',
     ),
     'examples' => array(
-      'drush -u 1 archidora-send-collection-to-archivematica',
+      'drush -u 1 archidora-send-collection-to-archivematica --target=pid --children=(yes,no)',
     ),
     'options' => array(
       'target' => array(
         'description' => 'The root pid of where to begin our search.',
+        'required' => TRUE,
+      ),
+      'children' => array(
+        'description' => 'Send child collections to archivematica (yes or no)',
         'required' => TRUE,
       ),
     ),
@@ -35,7 +39,8 @@ function archidora_drush_command() {
  */
 function drush_archidora_send_collection_to_archivematica() {
   $target = drush_get_option('target');
-  batch_set(archidora_send_collection_create_batch($target));
+  $children = drush_get_option('children');
+  batch_set(archidora_send_collection_create_batch($target, $children));
   drush_backend_batch_process();
 }
 
@@ -48,10 +53,10 @@ function drush_archidora_send_collection_to_archivematica() {
  * @return array
  *   An array describing the batch to be ran.
  */
-function archidora_send_collection_create_batch($target) {
+function archidora_send_collection_create_batch($target, $children) {
   return array(
     'operations' => array(
-      array('archidora_send_collection_batch_operation', array($target)),
+      array('archidora_send_collection_batch_operation', array($target, $children)),
     ),
     'title' => t('Sending the collection to Archivematica...'),
     'init_message' => t('Preparing to send the collection.'),
@@ -70,9 +75,10 @@ function archidora_send_collection_create_batch($target) {
  * @param array $context
  *   The context of the Drupal batch.
  */
-function archidora_send_collection_batch_operation($target, &$context) {
+function archidora_send_collection_batch_operation($target, $children, &$context) {
   //Debugin 
   file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Starting new batch: " . $target ."\n");
+
 
   //Select object that are children and get count
   $object_update = 10;
@@ -126,35 +132,24 @@ EOQ;
     $relationships = $object->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
 
     //test for collection
-    if(in_array($relationships[0]['object']['value'], $collections)){
+    if(in_array($relationships[0]['object']['value'], $collections) && strcasecmp($children, 'yes')){
        //Debugin 
        file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found collection in top function: " . $result['pid']['value'] ."\n", FILE_APPEND);  
        getSubCollectionPids($result['pid']['value'], $pidArr);
     }else{
-	array_push($pidArr, $result['pid']['value']);
-
-       //Debugin 
+       array_push($pidArr, $result['pid']['value']);
        $curPid = $result['pid']['value'];
        file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Adding in top function: " . $curPid ."\n", FILE_APPEND);
-       archidora_send_to_archivematica($object);
-    }//End if 
 
-   //End of recursion addition.  Following line needs to be added back in if it does not work
-   // archidora_send_to_archivematica($object);
+       archidora_send_to_archivematica($object);
+    }
   }
 
   foreach($pidArr as $k => $v){
-  echo $v ."\n";
+
     $object = islandora_object_load($v);
     archidora_send_to_archivematica($object);
-    //var_dump($object);
   }
-
-
-  //var_dump($pidArr);
-
-
-
   $sandbox['offset'] += $object_update;
   $context['finished'] = $sandbox['offset'] / $sandbox['total'];
 }
@@ -163,8 +158,6 @@ EOQ;
 function getSubCollectionPids($target, &$pidArr){
 
   Global $repository;
-
-  //var_dump($collections);
   $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
 
   $query = <<<EOQ
@@ -185,22 +178,17 @@ EOQ;
   $results = $connection->repository->ri->sparqlQuery($query);
 
   foreach ($results as $result) {
-
-       $fedoraObject = islandora_object_load($result['pid']['value']);
-       $relationships = $fedoraObject->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
-
+    $fedoraObject = islandora_object_load($result['pid']['value']);
+    $relationships = $fedoraObject->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
     if(in_array($relationships[0]['object']['value'], $collections)){
        //This is where you need to recurse to get the rest.
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found subcollection in recurser: " . $result['pid']['value'] ."\n", FILE_APPEND);  
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found subcollection in recurser: " . $result['pid']['value'] ."\n", FILE_APPEND);
        getSubCollectionPids($result['pid']['value'], $pidArr);
-       //echo "found sub function: " . $result['pid']['value'] . "\n";
     }else{
 	//Here you add to array	
        file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found object in recurser: " . $result['pid']['value'] ."\n", FILE_APPEND);  
-	//echo "found object: " . $result['pid']['value'] . "\n";
 	array_push($pidArr, $result['pid']['value']);
     }
-
   }
 }
 

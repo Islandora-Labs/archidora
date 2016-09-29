@@ -33,3 +33,7 @@ Note: As a side-effect of using
 [Cron Queues](https://api.drupal.org/api/drupal/modules!system!system.api.php/function/hook_cron_queue_info/7),
 the submission of objects to Archivematica may not complete during any one
 invocation of Cron.
+
+Drush
+
+drush asca --target=john:test --children=no
