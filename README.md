@@ -34,6 +34,10 @@ Note: As a side-effect of using
 the submission of objects to Archivematica may not complete during any one
 invocation of Cron.
 
-Drush
+Usage
+-----
 
-drush asca --target=john:test --children=no
+Drush can be used to send existing collections to Archivematica.  If the --children option is set to yes
+all subcollections and books will be be sent over as well.
+
+drush asca --target=some:pid --children=no

@@ -77,7 +77,7 @@ function archidora_send_collection_create_batch($target, $children) {
  */
 function archidora_send_collection_batch_operation($target, $children, &$context) {
   //Debugin 
-  file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Starting new batch: " . $target ."\n");
+  file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Starting new batch: " . $target ." with children set to " . $children . "\n");
 
 
   //Select object that are children and get count
@@ -134,12 +134,12 @@ EOQ;
     //test for collection
     if(in_array($relationships[0]['object']['value'], $collections) && strcasecmp($children, 'yes')){
        //Debugin 
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found collection in top function: " . $result['pid']['value'] ."\n", FILE_APPEND);  
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found collection in top function: " . $result['pid']['value'] ." processing children\n", FILE_APPEND);  
        getSubCollectionPids($result['pid']['value'], $pidArr);
     }else{
        array_push($pidArr, $result['pid']['value']);
        $curPid = $result['pid']['value'];
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Adding in top function: " . $curPid ."\n", FILE_APPEND);
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Adding: " . $curPid ."\n", FILE_APPEND);
 
        archidora_send_to_archivematica($object);
     }
@@ -182,11 +182,11 @@ EOQ;
     $relationships = $fedoraObject->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
     if(in_array($relationships[0]['object']['value'], $collections)){
        //This is where you need to recurse to get the rest.
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found subcollection in recurser: " . $result['pid']['value'] ."\n", FILE_APPEND);
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Processing child collection: " . $result['pid']['value'] ."\n", FILE_APPEND);
        getSubCollectionPids($result['pid']['value'], $pidArr);
     }else{
 	//Here you add to array	
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found object in recurser: " . $result['pid']['value'] ."\n", FILE_APPEND);  
+       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Adding child object: " . $result['pid']['value'] ."\n", FILE_APPEND);  
 	array_push($pidArr, $result['pid']['value']);
     }
   }
