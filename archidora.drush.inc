@@ -105,12 +105,14 @@ EOQ;
       return;
     }
   }
-
-  $context['message'] = t('Processing results @start to @end.', array(
-    '@start' => $sandbox['offset'],
-    '@end' => min($sandbox['offset'] + $object_update, $sandbox['total']),
-  ));
-
+/*
+  if(strcasecmp($children, 'no')){
+    $context['message'] = t('Processing results @start to @end.', array(
+      '@start' => $sandbox['offset'],
+      '@end' => min($sandbox['offset'] + $object_update, $sandbox['total']),
+    ));
+  }
+*/
   //Append to the query with offset so the set is not to large
   $offset_start = $sandbox['offset'];
   $query .= "
@@ -123,6 +125,11 @@ EOQ;
   $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
   $pidArr = array(); 
 
+/*
+  This section of code checks to see if the object is a collection and if we want to 
+  capture children. It collects pids into an array as required.  The array is then
+  processed.
+*/
   foreach ($results as $result) {
     module_load_include('inc', 'archidora', 'includes/archivematica');
     $object = islandora_object_load($result['pid']['value']);
@@ -140,10 +147,14 @@ EOQ;
        array_push($pidArr, $result['pid']['value']);
        $curPid = $result['pid']['value'];
        file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Adding: " . $curPid ."\n", FILE_APPEND);
-
-       archidora_send_to_archivematica($object);
+       //archidora_send_to_archivematica($object);
     }
   }
+
+  $context['message'] = t('Processing results @start to @end.', array(
+    '@start' => $sandbox['offset'],
+    '@end' => min($sandbox['offset'] + $object_update, $sandbox['total'] + count($pidArr)),
+  ));
 
   foreach($pidArr as $k => $v){
 
