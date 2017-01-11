@@ -122,6 +122,7 @@ EOQ;
   $results = $connection->repository->ri->sparqlQuery($query);
 
   //Define the collections that need to be recursed into
+                       
   $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
   $pidArr = array(); 
 
@@ -137,9 +138,8 @@ EOQ;
     //This was added for recursion
     //get relationships
     $relationships = $object->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
-
     //test for collection
-    if(in_array($relationships[0]['object']['value'], $collections) && strcasecmp($children, 'yes')){
+    if(in_array($relationships[0]['object']['value'], $collections) && strcasecmp($children, 'yes') == 0){
        //Debugin 
        file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found collection in top function: " . $result['pid']['value'] ." processing children\n", FILE_APPEND);  
        getSubCollectionPids($result['pid']['value'], $pidArr);
@@ -151,9 +151,16 @@ EOQ;
     }
   }
 
+/*
   $context['message'] = t('Processing results @start to @end.', array(
     '@start' => $sandbox['offset'],
-    '@end' => min($sandbox['offset'] + $object_update, $sandbox['total'] + count($pidArr)),
+    '@end' => min($sandbox['offset'] + $object_update, count($pidArr)),
+  ));
+*/
+
+  $context['message'] = t('Processing @end results.', array(
+    /*'@start' => $sandbox['offset'],*/
+    '@end' => count($pidArr),
   ));
 
   foreach($pidArr as $k => $v){
