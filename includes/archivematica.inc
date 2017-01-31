@@ -85,6 +85,9 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
       $aip->size += $object['OBJ']->size;
     }
     if ($aip->created) {
+
+       if(!isset($aip->size)){$aip->size = 0;}
+
       db_insert('archidora_aips')
         ->fields(array(
           'id' => $aip->id,
