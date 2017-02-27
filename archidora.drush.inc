@@ -76,9 +76,8 @@ function archidora_send_collection_create_batch($target, $children) {
  *   The context of the Drupal batch.
  */
 function archidora_send_collection_batch_operation($target, $children, &$context) {
-  //Debugin 
-  file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Starting new batch: " . $target ." with children set to " . $children . "\n");
 
+  file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Starting new batch: " . $target ." with children set to " . $children . "\n");
 
   //Select object that are children and get count
   $object_update = 10;
@@ -105,14 +104,7 @@ EOQ;
       return;
     }
   }
-/*
-  if(strcasecmp($children, 'no')){
-    $context['message'] = t('Processing results @start to @end.', array(
-      '@start' => $sandbox['offset'],
-      '@end' => min($sandbox['offset'] + $object_update, $sandbox['total']),
-    ));
-  }
-*/
+
   //Append to the query with offset so the set is not to large
   $offset_start = $sandbox['offset'];
   $query .= "
@@ -150,13 +142,6 @@ EOQ;
        //archidora_send_to_archivematica($object);
     }
   }
-
-/*
-  $context['message'] = t('Processing results @start to @end.', array(
-    '@start' => $sandbox['offset'],
-    '@end' => min($sandbox['offset'] + $object_update, count($pidArr)),
-  ));
-*/
 
   $context['message'] = t('Processing @end results.', array(
     /*'@start' => $sandbox['offset'],*/
