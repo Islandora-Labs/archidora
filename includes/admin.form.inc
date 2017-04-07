@@ -206,11 +206,11 @@ function archidora_admin_form($form, &$form_state) {
       ),
     ),
   );
-
    $form['archidora_use_sparql'] = array(
        '#type' => 'checkbox',
        '#title' => t('Check to enable SPARQL'),
        '#description' => t('Leave unchecked for Mulgara triplestore'),
+       '#default_value' => variable_get('archidora_use_sparql', FALSE),
    );
   return system_settings_form($form);
 }
