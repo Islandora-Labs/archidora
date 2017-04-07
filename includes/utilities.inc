@@ -58,6 +58,14 @@ function archidora_skip_content_models() {
  * Checks if a PID should be enqueued for archivematica.
  */
 function archidora_should_auto_enqueue($pid) {
+
+//SELECT ?s ?p ?o
+// FROM <info:edu.si.fedora#ri>
+// WHERE {
+//  <info:fedora/islandora:sp_basic_image_collection>
+//  <http://islandora.ca/archivematica#doNotAutoUploadChildren>
+//  ?o}
+
   $ri = islandora_get_tuque_connection()->repository->ri;
   $predicates = array(
     'isMemberOf',
