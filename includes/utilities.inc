@@ -59,12 +59,13 @@ function archidora_skip_content_models() {
  */
 function archidora_should_auto_enqueue($pid) {
 
-//SELECT ?s ?p ?o
-// FROM <info:edu.si.fedora#ri>
-// WHERE {
-//  <info:fedora/islandora:sp_basic_image_collection>
-//  <http://islandora.ca/archivematica#doNotAutoUploadChildren>
-//  ?o}
+//    SELECT ?o FROM <info:edu.si.fedora#ri>
+//WHERE {
+//        ?parent <http://islandora.ca/archivematica#doNotAutoUploadChildren> ?o .
+//  optional {<info:fedora/islandora:33460> <info:fedora/fedora-system:def/relations-external#isMemberOfCollection> ?parent}
+//  optional {<info:fedora/islandora:33460> <info:fedora/fedora-system:def/relations-external#isMemberOf> ?parent}
+//  optional {<info:fedora/islandora:33460> <info:fedora/fedora-system:def/relations-external#isPartOf> ?parent}
+//}
 
   $ri = islandora_get_tuque_connection()->repository->ri;
   $predicates = array(
@@ -74,6 +75,16 @@ function archidora_should_auto_enqueue($pid) {
   if (module_exists('islandora_compound_object')) {
     $predicates[] = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
   }
+    $sparql_enabled = variable_get('archidora_use_sparql');
+  $sparql_query = 'SELECT ?disabled FROM  <info:edu.si.fedora#ri> WHERE {'.
+      '?parent <'  . ARCHIDORA_RDF_URI . ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN . ' ?disabled .';
+      foreach ($predicates as $predicate){
+          $sparql_query .= 'optional {<info:fedora/' . $pid . '<fedora-rels-ext:' . $predicate . '> ?parent}';
+      }
+      $sparql_query .= '}';
+
+ drupal_set_message($sparql_query . ' :: ' . $sparql_enabled, 'status');
+
   $query = 'select $parent
     subquery (
       select $disabled from <#ri> where (
