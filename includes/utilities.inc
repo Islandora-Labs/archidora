@@ -77,9 +77,9 @@ function archidora_should_auto_enqueue($pid) {
   }
     $sparql_enabled = variable_get('archidora_use_sparql');
   $sparql_query = 'SELECT ?disabled FROM  <info:edu.si.fedora#ri> WHERE {'.
-      '?parent '  . ARCHIDORA_RDF_URI . ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN . ' ?disabled .';
+      '?parent <'  . ARCHIDORA_RDF_URI . ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN . '> ?disabled .';
       foreach ($predicates as $predicate){
-          $sparql_query .= 'optional {<info:fedora/' . trim($pid) . '> <fedora-rels-ext:' . $predicate . '> ?parent}';
+          $sparql_query .= ' optional {<info:fedora/' . trim($pid) . '> <fedora-rels-ext:' . $predicate . '> ?parent}';
       }
       $sparql_query .= '}';
 
