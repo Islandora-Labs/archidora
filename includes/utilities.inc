@@ -75,7 +75,9 @@ function archidora_should_auto_enqueue($pid) {
   if (module_exists('islandora_compound_object')) {
     $predicates[] = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
   }
-    $sparql_enabled = variable_get('archidora_use_sparql');
+
+  $sparql_enabled = variable_get('archidora_use_sparql');
+
   $sparql_query = 'SELECT ?disabled FROM  <info:edu.si.fedora#ri> WHERE {'.
       '?parent <'  . ARCHIDORA_RDF_URI . ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN . '> ?disabled .';
       foreach ($predicates as $predicate){
@@ -83,7 +85,7 @@ function archidora_should_auto_enqueue($pid) {
       }
       $sparql_query .= '}';
 
- drupal_set_message(htmlspecialchars($sparql_query) . ' :: ' . $sparql_enabled, 'status');
+ drupal_set_message("Is sparql enabled? " . $sparql_enabled, 'status');
 
   $query = 'select $parent
     subquery (
