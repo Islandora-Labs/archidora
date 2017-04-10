@@ -84,9 +84,11 @@ function archidora_should_auto_enqueue($pid) {
           $sparql_query .= ' optional {<info:fedora/' . trim($pid) . '> <fedora-rels-ext:' . $predicate . '> ?parent}';
       }
       $sparql_query .= '}';
-
- drupal_set_message("Is sparql enabled? " . $sparql_enabled, 'status');
-
+if($sparql_enabled) {
+    drupal_set_message("Sparql enabled!", 'status');
+}else{
+    drupal_set_message("Sparql not enabled!", 'status');
+}
   $query = 'select $parent
     subquery (
       select $disabled from <#ri> where (
