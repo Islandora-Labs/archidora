@@ -110,7 +110,7 @@ function archidora_should_auto_enqueue($pid) {
     $current_query = $query . implode(' or ', $walks);
     $current_query .= ')';
     if($sparql_enabled) {
-        $results = $ri->sparqlQuery($current_query);
+        $results = $ri->sparqlQuery($sparql_query);
     }else{
         $results = $ri->itqlQuery($current_query);
     }
