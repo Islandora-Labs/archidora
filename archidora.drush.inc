@@ -66,6 +66,9 @@ function archidora_send_collection_create_batch($target, $children) {
   );
 }
 
+
+
+
 /**
  * Constructs and performs the send collection operation.
  *
@@ -77,7 +80,9 @@ function archidora_send_collection_create_batch($target, $children) {
  */
 function archidora_send_collection_batch_operation($target, $children, &$context) {
 
-  file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Starting new batch: " . $target ." with children set to " . $children . "\n");
+    $logpath = drupal_get_path('module', 'archidora') . 'drush.log';
+
+  file_put_contents($logpath, "Starting new batch: " . $target ." with children set to " . $children . "\n");
 
   //Select object that are children and get count
   $object_update = 10;
@@ -133,12 +138,12 @@ EOQ;
     //test for collection
     if(in_array($relationships[0]['object']['value'], $collections) && strcasecmp($children, 'yes') == 0){
        //Debugin 
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Found collection in top function: " . $result['pid']['value'] ." processing children\n", FILE_APPEND);  
+       file_put_contents($logpath, "Found collection in top function: " . $result['pid']['value'] ." processing children\n", FILE_APPEND);
        getSubCollectionPids($result['pid']['value'], $pidArr);
     }else{
        array_push($pidArr, $result['pid']['value']);
        $curPid = $result['pid']['value'];
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Adding: " . $curPid ."\n", FILE_APPEND);
+       file_put_contents($logpath, "Adding: " . $curPid ."\n", FILE_APPEND);
        //archidora_send_to_archivematica($object);
     }
   }
@@ -151,7 +156,12 @@ EOQ;
   foreach($pidArr as $k => $v){
 
     $object = islandora_object_load($v);
-    archidora_send_to_archivematica($object);
+    if(isset($object->id)) {
+        archidora_send_to_archivematica($object);
+    }
+    else {
+          drupal_set_message(t('Error retrieving object %s', array('%s' => $v), 'error', FALSE));
+    }
   }
   $sandbox['offset'] += $object_update;
   $context['finished'] = $sandbox['offset'] / $sandbox['total'];
@@ -159,6 +169,8 @@ EOQ;
 
 
 function getSubCollectionPids($target, &$pidArr){
+
+    $logpath = drupal_get_path('module', 'archidora') . 'drush.log';
 
   Global $repository;
   $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
@@ -185,11 +197,11 @@ EOQ;
     $relationships = $fedoraObject->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
     if(in_array($relationships[0]['object']['value'], $collections)){
        //This is where you need to recurse to get the rest.
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Processing child collection: " . $result['pid']['value'] ."\n", FILE_APPEND);
+       file_put_contents($logpath, "Processing child collection: " . $result['pid']['value'] ."\n", FILE_APPEND);
        getSubCollectionPids($result['pid']['value'], $pidArr);
     }else{
 	//Here you add to array	
-       file_put_contents('/var/www/html/drupal/sites/all/modules/archidora/drush.log', "Adding child object: " . $result['pid']['value'] ."\n", FILE_APPEND);  
+       file_put_contents($logpath, "Adding child object: " . $result['pid']['value'] ."\n", FILE_APPEND);
 	array_push($pidArr, $result['pid']['value']);
     }
   }
