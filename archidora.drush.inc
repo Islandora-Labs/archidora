@@ -80,7 +80,7 @@ function archidora_send_collection_create_batch($target, $children) {
  */
 function archidora_send_collection_batch_operation($target, $children, &$context) {
 
-    $logpath = drupal_get_path('module', 'archidora') . 'drush.log';
+    $logpath = drupal_get_path('module', 'archidora') . '/drush.log';
 
   file_put_contents($logpath, "Starting new batch: " . $target ." with children set to " . $children . "\n");
 
@@ -170,7 +170,7 @@ EOQ;
 
 function getSubCollectionPids($target, &$pidArr){
 
-    $logpath = drupal_get_path('module', 'archidora') . 'drush.log';
+    $logpath = drupal_get_path('module', 'archidora') . '/drush.log';
 
   Global $repository;
   $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
