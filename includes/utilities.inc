@@ -59,14 +59,6 @@ function archidora_skip_content_models() {
  */
 function archidora_should_auto_enqueue($pid) {
 
-//    SELECT ?o FROM <info:edu.si.fedora#ri>
-//WHERE {
-//        ?parent <http://islandora.ca/archivematica#doNotAutoUploadChildren> ?o .
-//  optional {<info:fedora/islandora:33460> <info:fedora/fedora-system:def/relations-external#isMemberOfCollection> ?parent}
-//  optional {<info:fedora/islandora:33460> <info:fedora/fedora-system:def/relations-external#isMemberOf> ?parent}
-//  optional {<info:fedora/islandora:33460> <info:fedora/fedora-system:def/relations-external#isPartOf> ?parent}
-//}
-
   $ri = islandora_get_tuque_connection()->repository->ri;
   $predicates = array(
     'isMemberOf',
@@ -84,6 +76,8 @@ function archidora_should_auto_enqueue($pid) {
           $sparql_query .= ' optional {<info:fedora/' . trim($pid) . '> <fedora-rels-ext:' . $predicate . '> ?parent}';
       }
       $sparql_query .= '}';
+  
+
   $query = 'select $parent
     subquery (
       select $disabled from <#ri> where (
@@ -114,7 +108,7 @@ function archidora_should_auto_enqueue($pid) {
     }else{
         $results = $ri->itqlQuery($current_query);
     }
-var_dump($results);
+
     $leafs = array();
     foreach ($results as $result) {
       if ($result['disabled']['value'] === 'TRUE') {
