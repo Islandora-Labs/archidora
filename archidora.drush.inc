@@ -17,11 +17,15 @@ function archidora_drush_command() {
       'archidora',
     ),
     'examples' => array(
-      'drush -u 1 archidora-send-collection-to-archivematica',
+      'drush -u 1 archidora-send-collection-to-archivematica --target=pid --children=(yes,no)',
     ),
     'options' => array(
       'target' => array(
         'description' => 'The root pid of where to begin our search.',
+        'required' => TRUE,
+      ),
+      'children' => array(
+        'description' => 'Send child collections to archivematica (yes or no)',
         'required' => TRUE,
       ),
     ),
@@ -35,7 +39,8 @@ function archidora_drush_command() {
  */
 function drush_archidora_send_collection_to_archivematica() {
   $target = drush_get_option('target');
-  batch_set(archidora_send_collection_create_batch($target));
+  $children = drush_get_option('children');
+  batch_set(archidora_send_collection_create_batch($target, $children));
   drush_backend_batch_process();
 }
 
@@ -48,10 +53,10 @@ function drush_archidora_send_collection_to_archivematica() {
  * @return array
  *   An array describing the batch to be ran.
  */
-function archidora_send_collection_create_batch($target) {
+function archidora_send_collection_create_batch($target, $children) {
   return array(
     'operations' => array(
-      array('archidora_send_collection_batch_operation', array($target)),
+      array('archidora_send_collection_batch_operation', array($target, $children)),
     ),
     'title' => t('Sending the collection to Archivematica...'),
     'init_message' => t('Preparing to send the collection.'),
@@ -60,6 +65,9 @@ function archidora_send_collection_create_batch($target) {
     'file' => drupal_get_path('module', 'archidora') . '/archidora.drush.inc',
   );
 }
+
+
+
 
 /**
  * Constructs and performs the send collection operation.
@@ -70,7 +78,13 @@ function archidora_send_collection_create_batch($target) {
  * @param array $context
  *   The context of the Drupal batch.
  */
-function archidora_send_collection_batch_operation($target, &$context) {
+function archidora_send_collection_batch_operation($target, $children, &$context) {
+
+    $logpath = drupal_get_path('module', 'archidora') . '/drush.log';
+
+  file_put_contents($logpath, "Starting new batch: " . $target ." with children set to " . $children . "\n");
+
+  //Select object that are children and get count
   $object_update = 10;
   $query = <<<EOQ
 SELECT ?pid FROM <#ri>
@@ -96,22 +110,105 @@ EOQ;
     }
   }
 
-  $context['message'] = t('Processing results @start to @end.', array(
-    '@start' => $sandbox['offset'],
-    '@end' => min($sandbox['offset'] + $object_update, $sandbox['total']),
-  ));
-
+  //Append to the query with offset so the set is not to large
   $offset_start = $sandbox['offset'];
   $query .= "
   LIMIT $object_update
   OFFSET $offset_start
   ";
   $results = $connection->repository->ri->sparqlQuery($query);
+
+  //Define the collections that need to be recursed into
+                       
+  $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
+  $pidArr = array(); 
+
+/*
+  This section of code checks to see if the object is a collection and if we want to 
+  capture children. It collects pids into an array as required.  The array is then
+  processed.
+*/
   foreach ($results as $result) {
     module_load_include('inc', 'archidora', 'includes/archivematica');
     $object = islandora_object_load($result['pid']['value']);
-    archidora_send_to_archivematica($object);
+
+    //This was added for recursion
+    //get relationships
+    $relationships = $object->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
+    //test for collection
+    if(in_array($relationships[0]['object']['value'], $collections) && strcasecmp($children, 'yes') == 0){
+       //Debugin 
+       file_put_contents($logpath, "Found collection in top function: " . $result['pid']['value'] ." processing children\n", FILE_APPEND);
+       getSubCollectionPids($result['pid']['value'], $pidArr);
+    }else{
+       array_push($pidArr, $result['pid']['value']);
+       $curPid = $result['pid']['value'];
+       file_put_contents($logpath, "Adding: " . $curPid ."\n", FILE_APPEND);
+       //archidora_send_to_archivematica($object);
+    }
+  }
+
+  $context['message'] = t('Processing @end results.', array(
+    /*'@start' => $sandbox['offset'],*/
+    '@end' => count($pidArr),
+  ));
+
+  foreach($pidArr as $k => $v){
+
+    $object = islandora_object_load($v);
+    if(isset($object->id)) {
+        archidora_send_to_archivematica($object);
+    }
+    else {
+          drupal_set_message(t('Error retrieving object %s', array('%s' => $v), 'error', FALSE));
+    }
   }
   $sandbox['offset'] += $object_update;
   $context['finished'] = $sandbox['offset'] / $sandbox['total'];
 }
+
+
+function getSubCollectionPids($target, &$pidArr){
+
+    $logpath = drupal_get_path('module', 'archidora') . '/drush.log';
+
+  Global $repository;
+  $collections = array('islandora:collectionCModel', 'islandora:bookCModel');
+
+  $query = <<<EOQ
+SELECT ?pid FROM <#ri>
+WHERE {
+    {
+  ?pid <fedora-rels-ext:isMemberOf> <info:fedora/$target>
+  }
+  UNION
+  {
+  ?pid <fedora-rels-ext:isMemberOfCollection> <info:fedora/$target>
+  }
+}
+EOQ;
+  $connection = islandora_get_tuque_connection();
+
+  $sparql_count = $connection->repository->ri->countQuery($query, 'sparql');
+  $results = $connection->repository->ri->sparqlQuery($query);
+
+  foreach ($results as $result) {
+    $fedoraObject = islandora_object_load($result['pid']['value']);
+    $relationships = $fedoraObject->relationships->get('info:fedora/fedora-system:def/model#', 'hasModel');
+    if(in_array($relationships[0]['object']['value'], $collections)){
+       //This is where you need to recurse to get the rest.
+       file_put_contents($logpath, "Processing child collection: " . $result['pid']['value'] ."\n", FILE_APPEND);
+       getSubCollectionPids($result['pid']['value'], $pidArr);
+    }else{
+	//Here you add to array	
+       file_put_contents($logpath, "Adding child object: " . $result['pid']['value'] ."\n", FILE_APPEND);
+	array_push($pidArr, $result['pid']['value']);
+    }
+  }
+}
+
+
+
+
+
+

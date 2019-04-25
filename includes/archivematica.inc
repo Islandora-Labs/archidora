@@ -85,6 +85,9 @@ function archidora_send_to_archivematica(AbstractObject $object, $aip = NULL) {
       $aip->size += $object['OBJ']->size;
     }
     if ($aip->created) {
+
+       if(!isset($aip->size)){$aip->size = 0;}
+
       db_insert('archidora_aips')
         ->fields(array(
           'id' => $aip->id,
@@ -431,7 +434,7 @@ function archidora_get_status_from_object(AbstractObject $object) {
   if ($em_iri) {
     // Parse the em_iri to get the right call for status.
     $se_iri = archidora_get_se_iri_from_em_iri($em_iri);
-    $status_endpoint = "$se_iri/state";
+    $status_endpoint = $se_iri . "state";
 
     $response = drupal_http_request($status_endpoint, array(
       'method' => 'GET',

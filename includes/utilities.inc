@@ -58,6 +58,7 @@ function archidora_skip_content_models() {
  * Checks if a PID should be enqueued for archivematica.
  */
 function archidora_should_auto_enqueue($pid) {
+
   $ri = islandora_get_tuque_connection()->repository->ri;
   $predicates = array(
     'isMemberOf',
@@ -66,6 +67,17 @@ function archidora_should_auto_enqueue($pid) {
   if (module_exists('islandora_compound_object')) {
     $predicates[] = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
   }
+
+  $sparql_enabled = variable_get('archidora_use_sparql');
+
+  $sparql_query = 'SELECT ?disabled FROM  <info:edu.si.fedora#ri> WHERE {'.
+      '?parent <'  . ARCHIDORA_RDF_URI . ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN . '> ?disabled .';
+      foreach ($predicates as $predicate){
+          $sparql_query .= ' optional {<info:fedora/' . trim($pid) . '> <fedora-rels-ext:' . $predicate . '> ?parent}';
+      }
+      $sparql_query .= '}';
+  
+
   $query = 'select $parent
     subquery (
       select $disabled from <#ri> where (
@@ -91,7 +103,12 @@ function archidora_should_auto_enqueue($pid) {
     }
     $current_query = $query . implode(' or ', $walks);
     $current_query .= ')';
-    $results = $ri->itqlQuery($current_query);
+    if($sparql_enabled) {
+        $results = $ri->sparqlQuery($sparql_query);
+    }else{
+        $results = $ri->itqlQuery($current_query);
+    }
+
     $leafs = array();
     foreach ($results as $result) {
       if ($result['disabled']['value'] === 'TRUE') {

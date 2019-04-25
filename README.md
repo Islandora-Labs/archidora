@@ -33,3 +33,11 @@ Note: As a side-effect of using
 [Cron Queues](https://api.drupal.org/api/drupal/modules!system!system.api.php/function/hook_cron_queue_info/7),
 the submission of objects to Archivematica may not complete during any one
 invocation of Cron.
+
+Usage
+-----
+
+Drush can be used to send existing collections to Archivematica.  If the --children option is set to yes
+all subcollections and books will be be sent over as well.
+
+drush asca --target=some:pid --children=no
