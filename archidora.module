@@ -56,6 +56,10 @@ function archidora_menu() {
 function archidora_islandora_derivative(AbstractObject $object) {
   $mod_path = drupal_get_path('module', 'archidora');
 
+
+     watchdog('archidora_islandora_derivatives', 'In derviatives hook @test.', array('@test' => 'a test'), WATCHDOG_WARNING);
+
+
   $items = array();
 
   module_load_include('inc', 'archidora', 'includes/utilities');
@@ -63,6 +67,7 @@ function archidora_islandora_derivative(AbstractObject $object) {
 
   if (count(array_intersect($object->models, $skip_models)) === 0 && archidora_get_parent($object)) {
     $items[] = array(
+      'force' => FALSE,
       'source_dsid' => NULL,
       'destination_dsid' => NULL,
       'weight' => '1000',
@@ -72,11 +77,12 @@ function archidora_islandora_derivative(AbstractObject $object) {
       'file' => "$mod_path/includes/derivatives.inc",
     );
 
-    // XXX: Workaround for broken hook filtering, for modifications
+    // XXX: Workaround for broken hook filtering, for modification
     // (NULL -> NULL should always be run, or rather they should be left to
     // figure out if they should run on their own).
     foreach ($object as $datastream) {
       $items[] = array(
+        'force' => FALSE,
         'source_dsid' => $datastream->id,
         'destination_dsid' => NULL,
         'weight' => '1000',
@@ -87,6 +93,11 @@ function archidora_islandora_derivative(AbstractObject $object) {
       );
     }
   }
+    $i  = var_export($items,TRUE);
+    watchdog('archidora_islandora_derivatives', 'In derviatives hook items dump @test.', array('@test' => $i), WATCHDOG_WARNING);
+
+
+
 
   return $items;
 }

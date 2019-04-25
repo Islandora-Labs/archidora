@@ -7,19 +7,84 @@
 
 /**
  * Derivative callback; send the object to Archivematica.
+ *
+ *  Function must return an array in the structure of:
+ *  - success: Bool denoting whether the operation was successful.
+ *     - messages: An array structure containing zero or more array's with the
+ *       following fields:
+ *       - message: A string passed through t() describing the
+ *         outcome of the operation.
+ *       - message_sub: (Optional) A substitution array as acceptable by t() or
+ *         watchdog.
+ *       - type: A string denoting whether the output is to be
+ *         drupal_set_messaged (dsm) or watchdogged (watchdog).
+ *       - severity: (Optional) A severity level / status to be used when
+ *         logging messages. Uses the defaults of drupal_set_message and
+ *         watchdog if not defined.
+ *
+ *
+ *
  */
 function archidora_derivative_callback($object, $force = FALSE) {
   module_load_include('inc', 'archidora', 'includes/archivematica');
   module_load_include('inc', 'archidora', 'includes/utilities');
 
+    watchdog('archidora_derivatives_callback', 'In derviatives_callback hook @test.', array('@test' => 'a test'), WATCHDOG_WARNING);
+
+  $to_return = array(
+      'success' => FALSE,
+      'messages' => array(),
+  );
+
   try {
     if (!archidora_is_in_queue($object) &&
       (!archidora_get_em_iri_from_object($object) || !archidora_did_the_last_modification_change_the_em_iri_value($object)) &&
       archidora_should_auto_enqueue($object->id)) {
+
+        watchdog('archidora_derivatives_callback', 'In derviatives_callback hook @test.', array('@test' => 'before encued'), WATCHDOG_WARNING);
       archidora_enqueue_item($object);
+
+        watchdog('archidora_derivatives_callback', 'In derviatives_callback hook @test.', array('@test' => 'object encued'), WATCHDOG_WARNING);
+
+      $to_return['success'] = TRUE;
+        $to_return['messages'][] = array(
+            'message' => t('@id was automatically enqueued to send to Archivematica'),
+            'message_sub' =>  array('@id' => $object->id),
+            'type' => 'watchdog',
+            'serverity' => 'WATCHDOG_WARNING'
+        );
+       /*
+      $to_return['messages'][] = array('message' => t('Item @id enqueued for archivematica', array('@id' => $object->id)),
+                                        'type' => 'dsm',
+                                        'serverity' => 'status'
+
+    );
+       */
     }
+      watchdog('archidora_derivatives_callback', 'In derviatives_callback hook @test.', array('@test' => 'outside try'), WATCHDOG_WARNING);
+
+      $to_return['messages'][] = array(
+          'message' => t('@id was not automatically enqueued to send to Archivematica, because we cannot determine if the most recent version of the object'),
+          'message_sub' =>  array('@id' => $object->id),
+          'type' => 'watchdog',
+          'serverity' => 'WATCHDOG_WARNING'
+      );
+
   }
   catch (ArchidoraUnversionedRelExtException $e) {
+      $to_return['success'] = FALSE;
+
+      $to_return['messages'][] = array(
+          'message' => t('@id was not automatically enqueued to send to Archivematica, because we cannot determine if the most recent version of the object'),
+           'message_sub' =>  array('@id' => $object->id),
+          'type' => 'watchdog',
+          'serverity' => 'WATCHDOG_WARNING'
+      );
+
+
+      watchdog('archidora_derivatives_callback', 'In derviatives_callback hook @test.', array('@test' => 'not to be sent'), WATCHDOG_WARNING);
+
+/*
     watchdog(
       'archidora',
       '%id was not automatically enqueued to send to Archivematica, because we cannot determine if the most recent version of the object has already been sent. Either change the RELS-EXT to be versioned or submit the object manually.',
@@ -29,7 +94,10 @@ function archidora_derivative_callback($object, $force = FALSE) {
       WATCHDOG_WARNING,
       l(t('object page'), "islandora/object/{$object->id}")
     );
+    */
   }
+
+  return $to_return;
 }
 
 /**
