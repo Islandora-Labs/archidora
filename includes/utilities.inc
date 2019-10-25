@@ -68,8 +68,6 @@ function archidora_should_auto_enqueue($pid) {
   }
 
   if (variable_get('islandora_risearch_use_itql_when_necessary', TRUE)) {
-
-
     $query = 'select $parent
     subquery (
       select $disabled from <#ri> where (
@@ -115,7 +113,7 @@ function archidora_should_auto_enqueue($pid) {
       $where = array();
       foreach ($predicates as $predicate) {
         foreach ($leafs as $current_pid) {
-          $where[] = "{ <info:fedora/{$current_pid}> fedora-rels-ext:{$predicate} ?parent ." .
+          $where[] = "{ <info:fedora/{$current_pid}> fedora-rels-ext:{$predicate} ?parent .\n" .
             "OPTIONAL { ?parent <" . ARCHIDORA_RDF_URI . ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN . "> ?disabled }}";
         }
       }
@@ -127,9 +125,7 @@ function archidora_should_auto_enqueue($pid) {
         if ($result['disabled']['value'] === 'TRUE') {
           return FALSE;
         }
-        else {
-          $leafs[] = $result['parent']['value'];
-        }
+        $leafs[] = $result['parent']['value'];
       }
       $leafs = array_unique($leafs);
     }
