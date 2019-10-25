@@ -66,40 +66,69 @@ function archidora_should_auto_enqueue($pid) {
   if (module_exists('islandora_compound_object')) {
     $predicates[] = variable_get('islandora_compound_object_relationship', 'isConstituentOf');
   }
-  $query = 'select $parent
+
+  if (variable_get('islandora_risearch_use_itql_when_necessary', TRUE)) {
+    $query = 'select $parent
     subquery (
       select $disabled from <#ri> where (
         $parent <' . ARCHIDORA_RDF_URI . ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN . '> $disabled
       )
     )
     from <#ri> where (';
-  $walks = array();
-  $leafs = array($pid);
-  $last_leafs = array();
-  while (array_diff($leafs, $last_leafs)) {
-    $last_leafs = $leafs;
-    foreach ($predicates as $predicate) {
-      foreach ($leafs as $current_pid) {
-        $walks[] = '
+    $walks = array();
+    $leafs = array($pid);
+    $last_leafs = array();
+    while (array_diff($leafs, $last_leafs)) {
+      $last_leafs = $leafs;
+      foreach ($predicates as $predicate) {
+        foreach ($leafs as $current_pid) {
+          $walks[] = '
           walk
             (
               <info:fedora/' . $current_pid . '> <fedora-rels-ext:' . $predicate . '> $parent
                 and $child <fedora-rels-ext:' . $predicate . '> $parent
             )
         ';
+        }
       }
-    }
-    $current_query = $query . implode(' or ', $walks);
-    $current_query .= ')';
-    $results = $ri->itqlQuery($current_query);
-    $leafs = array();
-    foreach ($results as $result) {
-      if ($result['disabled']['value'] === 'TRUE') {
-        return FALSE;
+      $current_query = $query . implode(' or ', $walks);
+      $current_query .= ')';
+      $results = $ri->itqlQuery($current_query);
+      $leafs = array();
+      foreach ($results as $result) {
+        if ($result['disabled']['value'] === 'TRUE') {
+          return FALSE;
+        }
+        $leafs[] = $result['parent']['value'];
       }
-      $leafs[] = $result['parent']['value'];
+      $leafs = array_unique($leafs);
     }
-    $leafs = array_unique($leafs);
+  }
+  else {
+    // Using SPARQL
+    $leafs = array($pid);
+    $last_leafs = array();
+    while (array_diff($leafs, $last_leafs)) {
+      $last_leafs = $leafs;
+      $where = array();
+      foreach ($predicates as $predicate) {
+        foreach ($leafs as $current_pid) {
+          $where[] = "{ <info:fedora/{$current_pid}> fedora-rels-ext:{$predicate} ?parent .\n" .
+            "OPTIONAL { ?parent <" . ARCHIDORA_RDF_URI . ARCHIDORA_DO_NOT_AUTO_UPLOAD_CHILDREN . "> ?disabled }}";
+        }
+      }
+      $query = "prefix fedora-rels-ext: <info:fedora/fedora-system:def/relations-external#>\n" .
+        "select ?parent ?disabled from <#ri> where {" . implode(' UNION ', $where) . "}";
+      $results = $ri->query($query, 'sparql');
+      $leafs = array();
+      foreach ($results as $result) {
+        if ($result['disabled']['value'] === 'TRUE') {
+          return FALSE;
+        }
+        $leafs[] = $result['parent']['value'];
+      }
+      $leafs = array_unique($leafs);
+    }
   }
   return TRUE;
 }
