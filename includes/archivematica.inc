@@ -238,6 +238,9 @@ EOQ;
   else {
     $aip->created = FALSE;
   }
+  if (!isset($aip->manual)) {
+    $aip->manual = FALSE;
+  }
 
   return $aip;
 }
@@ -411,7 +414,7 @@ function archidora_get_em_iri_from_object(AbstractObject $object) {
  */
 function archidora_get_se_iri_from_em_iri($em_iri) {
   $result = db_query('SELECT se_iri from {archidora_aips} WHERE em_iri = :em_iri', array(':em_iri' => $em_iri));
-  return $result->fetchColumn();
+  return rtrim($result->fetchColumn(), '/');
 }
 
 
